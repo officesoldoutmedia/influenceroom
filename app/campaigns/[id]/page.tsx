@@ -6,12 +6,10 @@ import { Nav, type NavRole } from '@/app/_components/nav'
 import {
   type CampaignWithJoins,
   type CampaignStatus,
-  type Task,
   type TaskGroup,
-  type TaskPriority,
-  type TaskStatus,
 } from '@/lib/campaigns/types'
 import { CampaignDetailUI, type SimpleBrand, type SimpleMember } from './detail-ui'
+import { BoardUI, type TaskWithAssignee } from './board-ui'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,25 +19,6 @@ const STATUS_BADGE: Record<CampaignStatus, string> = {
   in_review: 'bg-amber-100 text-amber-800',
   completed: 'bg-blue-100 text-blue-700',
   cancelled: 'bg-rose-100 text-rose-700',
-}
-
-const TASK_STATUS_BADGE: Record<TaskStatus, string> = {
-  todo: 'bg-stone-200 text-stone-700',
-  in_progress: 'bg-blue-100 text-blue-700',
-  blocked: 'bg-amber-100 text-amber-800',
-  review: 'bg-purple-100 text-purple-700',
-  done: 'bg-emerald-100 text-emerald-700',
-}
-
-const PRIORITY_BADGE: Record<TaskPriority, string> = {
-  low: 'bg-stone-100 text-stone-600',
-  normal: 'bg-blue-100 text-blue-700',
-  high: 'bg-amber-100 text-amber-800',
-  urgent: 'bg-rose-100 text-rose-700',
-}
-
-type TaskWithAssignee = Task & {
-  assignee: { id: string; name: string; avatar_url: string | null } | null
 }
 
 export default async function CampaignDetailPage({
@@ -102,17 +81,8 @@ export default async function CampaignDetailPage({
   const groupsArr = (groups ?? []) as TaskGroup[]
   const tasksArr = (tasks ?? []) as TaskWithAssignee[]
 
-  const tasksByGroup = new Map<string, TaskWithAssignee[]>()
-  for (const t of tasksArr) {
-    const key = t.group_id ?? '__ungrouped__'
-    const arr = tasksByGroup.get(key) ?? []
-    arr.push(t)
-    tasksByGroup.set(key, arr)
-  }
-
   const canEdit =
     role === 'owner' || role === 'manager' || (role === 'account' && campaign.owner_id === userId)
-  const ungrouped = tasksByGroup.get('__ungrouped__') ?? []
 
   return (
     <>
@@ -195,70 +165,15 @@ export default async function CampaignDetailPage({
           </section>
 
           <section className="bg-white rounded-2xl shadow-sm p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-semibold text-stone-900">Tasks</h2>
-              {groupsArr.length === 0 && (
-                <div className="flex gap-2">
-                  <button type="button" disabled className="px-3 py-1.5 rounded-lg bg-stone-100 text-stone-400 text-xs cursor-not-allowed">
-                    + Add group (Phase 4)
-                  </button>
-                </div>
-              )}
-            </div>
-            {groupsArr.length === 0 && ungrouped.length === 0 ? (
-              <p className="text-sm text-stone-400">Niciun task. Atașează un template la creare sau adaugă manual (Phase 4).</p>
-            ) : (
-              <div className="space-y-5">
-                {groupsArr.map((g) => {
-                  const groupTasks = tasksByGroup.get(g.id) ?? []
-                  return (
-                    <div key={g.id}>
-                      <header className="flex items-center justify-between mb-2 border-b border-stone-100 pb-1">
-                        <h3 className="text-sm font-semibold text-stone-900">
-                          {g.position}. {g.name}
-                        </h3>
-                        <span className="text-xs text-stone-500">due {g.due_date ?? '—'}</span>
-                      </header>
-                      <ul className="divide-y divide-stone-100">
-                        {groupTasks.map((t) => (
-                          <li key={t.id} className="py-2 flex items-center gap-3">
-                            <span className={`text-[10px] uppercase tracking-wide font-medium px-2 py-0.5 rounded-full ${TASK_STATUS_BADGE[t.status]}`}>
-                              {t.status.replace('_', ' ')}
-                            </span>
-                            <span className="flex-1 text-sm text-stone-900">{t.title}</span>
-                            <span className={`text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full ${PRIORITY_BADGE[t.priority]}`}>
-                              {t.priority}
-                            </span>
-                            <span className="text-xs text-stone-500 w-32 text-right">
-                              {t.assignee?.name ?? <span className="italic">Neasignat</span>}
-                            </span>
-                            <span className="text-xs text-stone-500 w-24 text-right">
-                              {t.due_date ?? '—'}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )
-                })}
-                {ungrouped.length > 0 && (
-                  <div>
-                    <h3 className="text-sm font-semibold text-stone-900 mb-2">Other tasks</h3>
-                    <ul className="divide-y divide-stone-100">
-                      {ungrouped.map((t) => (
-                        <li key={t.id} className="py-2 flex items-center gap-3">
-                          <span className={`text-[10px] uppercase tracking-wide font-medium px-2 py-0.5 rounded-full ${TASK_STATUS_BADGE[t.status]}`}>
-                            {t.status.replace('_', ' ')}
-                          </span>
-                          <span className="flex-1 text-sm text-stone-900">{t.title}</span>
-                          <span className="text-xs text-stone-500">{t.due_date ?? '—'}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            )}
+            <h2 className="text-base font-semibold text-stone-900 mb-4">Tasks</h2>
+            <BoardUI
+              campaignId={id}
+              initialGroups={groupsArr}
+              initialTasks={tasksArr}
+              members={(members ?? []) as { id: string; name: string; role: string; avatar_url: string | null }[]}
+              canEdit={canEdit}
+              currentUserId={userId}
+            />
           </section>
         </div>
       </main>
