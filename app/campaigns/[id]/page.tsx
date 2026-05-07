@@ -87,7 +87,7 @@ export default async function CampaignDetailPage({
   return (
     <>
       <Nav name={me?.name ?? ''} role={role} />
-      <main className="min-h-[calc(100vh-49px)] bg-stone-50 p-8">
+      <main className="bg-stone-50 px-4 sm:px-6 py-6 sm:py-10 pwa-safe-bottom">
         <div className="max-w-5xl mx-auto">
           <div className="mb-4">
             <Link href="/campaigns" className="text-sm text-stone-500 hover:text-stone-800">← Campaigns</Link>
@@ -105,7 +105,7 @@ export default async function CampaignDetailPage({
                 <p className="text-sm text-stone-600">
                   Brand:{' '}
                   {campaign.brand ? (
-                    <Link href={`/brands`} className="text-indigo-700 hover:underline">{campaign.brand.name}</Link>
+                    <Link href={`/brands`} className="text-brand-800 hover:underline">{campaign.brand.name}</Link>
                   ) : '—'}
                   {campaign.owner && <> · Owner: <span className="text-stone-700">{campaign.owner.name}</span></>}
                 </p>
@@ -157,7 +157,7 @@ export default async function CampaignDetailPage({
               </div>
               <Link
                 href={`/campaigns/${campaign.id}/influencers`}
-                className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs hover:bg-indigo-700"
+                className="px-3 py-1.5 rounded-lg bg-brand-700 text-white text-xs hover:bg-brand-800"
               >
                 Open roster →
               </Link>

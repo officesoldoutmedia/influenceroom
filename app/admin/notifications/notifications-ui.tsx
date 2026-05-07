@@ -40,10 +40,10 @@ const TEMPLATES = [
 ] as const
 
 const inputCls =
-  'w-full px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100'
+  'w-full px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:border-brand-700 focus:ring-2 focus:ring-brand-500/20'
 const textareaCls = `${inputCls} min-h-[120px] font-mono text-xs`
 const btnPrimary =
-  'px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm hover:bg-indigo-700 disabled:opacity-60'
+  'px-4 py-2 rounded-lg bg-brand-700 text-white text-sm hover:bg-brand-800 disabled:opacity-60'
 const btnSecondary =
   'px-4 py-2 rounded-lg bg-stone-100 text-stone-700 text-sm hover:bg-stone-200'
 
@@ -204,7 +204,7 @@ export function NotificationsUI({
                 onClick={() => setStatusFilter(s || null)}
                 className={`text-xs px-2 py-0.5 rounded-full border ${
                   (initialFilterStatus ?? '') === s
-                    ? 'bg-indigo-600 text-white border-indigo-600'
+                    ? 'bg-brand-700 text-white border-brand-700'
                     : 'border-stone-300 text-stone-600 hover:border-stone-500'
                 }`}
               >

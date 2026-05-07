@@ -67,9 +67,9 @@ export default async function AdminBroadcastPage() {
   return (
     <>
       <Nav name={me?.name ?? ''} role={role} />
-      <main className="min-h-[calc(100vh-49px)] bg-stone-50 p-8">
+      <main className="bg-stone-50 px-4 sm:px-6 py-6 sm:py-10 pwa-safe-bottom">
         <div className="max-w-4xl mx-auto">
-          <h1 className="text-2xl font-semibold text-stone-900 mb-6">Broadcast</h1>
+          <h1 className="font-display text-3xl sm:text-4xl font-semibold text-stone-900 leading-[1.05] mb-6 sm:mb-8">Broadcast</h1>
           <BroadcastUI
             members={(members ?? []) as MemberOption[]}
             history={history}

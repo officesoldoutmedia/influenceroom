@@ -28,12 +28,12 @@ export default async function NewTemplatePage() {
   return (
     <>
       <Nav name={me?.name ?? ''} role={role} />
-      <main className="min-h-[calc(100vh-49px)] bg-stone-50 p-8">
+      <main className="bg-stone-50 px-4 sm:px-6 py-6 sm:py-10 pwa-safe-bottom">
         <div className="max-w-4xl mx-auto">
           <div className="mb-4">
             <Link href="/admin/templates" className="text-sm text-stone-500 hover:text-stone-800">← Templates</Link>
           </div>
-          <h1 className="text-2xl font-semibold text-stone-900 mb-6">New template</h1>
+          <h1 className="font-display text-3xl sm:text-4xl font-semibold text-stone-900 leading-[1.05] mb-6 sm:mb-8">New template</h1>
           <TemplateForm isEdit={false} />
         </div>
       </main>

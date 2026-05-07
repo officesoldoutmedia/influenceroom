@@ -56,7 +56,7 @@ export default async function InfluencerDetailPage({
   return (
     <>
       <Nav name={me?.name ?? ''} role={role} />
-      <main className="min-h-[calc(100vh-49px)] bg-stone-50 p-8">
+      <main className="bg-stone-50 px-4 sm:px-6 py-6 sm:py-10 pwa-safe-bottom">
         <div className="max-w-4xl mx-auto">
           <div className="mb-4">
             <Link href="/influencers" className="text-sm text-stone-500 hover:text-stone-800">← Influencers</Link>
@@ -65,7 +65,7 @@ export default async function InfluencerDetailPage({
           <div className="bg-white rounded-2xl shadow-sm p-6 mb-4">
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-full bg-indigo-50 text-indigo-700 flex items-center justify-center text-xl font-semibold">
+                <div className="w-14 h-14 rounded-full bg-brand-50 text-brand-800 flex items-center justify-center text-xl font-semibold">
                   {i.name[0]?.toUpperCase() ?? '?'}
                 </div>
                 <div>
@@ -110,7 +110,7 @@ export default async function InfluencerDetailPage({
             {i.niche_tags.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-3">
                 {i.niche_tags.map((t) => (
-                  <span key={t} className="text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full">
+                  <span key={t} className="text-xs bg-brand-50 text-brand-800 px-2 py-0.5 rounded-full">
                     {t}
                   </span>
                 ))}

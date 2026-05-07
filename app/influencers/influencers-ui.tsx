@@ -115,99 +115,148 @@ export function InfluencersUI({
       />
 
       {items.length === 0 ? (
-        <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
-          <p className="text-stone-500 text-sm mb-1">Niciun influencer găsit.</p>
-          {hasActiveFilter(initialFilters) && (
-            <p className="text-stone-400 text-xs">Încearcă să resetezi filtrele.</p>
+        <div className="bg-white border border-stone-200 rounded-xl py-12 px-6 sm:py-16 text-center">
+          <p className="font-display text-lg text-stone-900 mb-1">Niciun influencer găsit</p>
+          {hasActiveFilter(initialFilters) ? (
+            <p className="text-stone-500 text-sm">Încearcă să resetezi filtrele.</p>
+          ) : (
+            <p className="text-stone-500 text-sm">Adaugă primul influencer pentru a începe.</p>
           )}
         </div>
       ) : (
-        <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-stone-50 border-b border-stone-200">
-              <tr className="text-left text-stone-500">
-                <th className="px-4 py-3 font-medium">Name</th>
-                <th className="px-4 py-3 font-medium">Primary</th>
-                <th className="px-4 py-3 font-medium">Tier</th>
-                <th className="px-4 py-3 font-medium">Manager</th>
-                <th className="px-4 py-3 font-medium">Niches</th>
-                <th className="px-4 py-3 font-medium text-right">Followers</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-stone-100">
-              {items.map((i) => (
-                <tr key={i.id} className={i.status === 'active' ? '' : 'opacity-60'}>
-                  <td className="px-4 py-3">
-                    <Link href={`/influencers/${i.id}`} className="flex items-center gap-3 hover:text-indigo-700">
-                      <div className="w-8 h-8 rounded-full bg-indigo-50 text-indigo-700 flex items-center justify-center text-xs font-semibold">
-                        {i.name[0]?.toUpperCase() ?? '?'}
-                      </div>
-                      <span className="font-medium text-stone-900">{i.name}</span>
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3 text-stone-600">{i.primary_handle ?? '—'}</td>
-                  <td className="px-4 py-3">
-                    {i.tier && (
-                      <span className={`text-[10px] uppercase tracking-wide font-medium px-2 py-0.5 rounded-full ${TIER_BADGE[i.tier]}`}>
-                        {i.tier}
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-stone-600">
-                    {i.account_manager_id ? (
-                      managerNameById.get(i.account_manager_id) ?? '—'
-                    ) : (
-                      <span className="text-stone-400 italic">Unassigned</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-1">
-                      {i.niche_tags.slice(0, 3).map((t) => (
-                        <span key={t} className="text-[10px] bg-stone-100 text-stone-700 px-1.5 py-0.5 rounded">
-                          {t}
+        <>
+          {/* Mobile: cards */}
+          <ul className="md:hidden space-y-2">
+            {items.map((i) => (
+              <li key={i.id} className={i.status === 'active' ? '' : 'opacity-60'}>
+                <Link
+                  href={`/influencers/${i.id}`}
+                  className="flex items-start gap-3 bg-white border border-stone-200 rounded-xl p-4 active:bg-stone-50 transition-colors"
+                >
+                  <div className="w-10 h-10 shrink-0 rounded-full bg-brand-50 text-brand-800 flex items-center justify-center text-sm font-semibold uppercase">
+                    {i.name[0] ?? '?'}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium text-stone-900 truncate">{i.name}</span>
+                      {i.tier && (
+                        <span className={`shrink-0 text-[10px] uppercase tracking-wide font-medium px-2 py-0.5 rounded-full ${TIER_BADGE[i.tier]}`}>
+                          {i.tier}
                         </span>
-                      ))}
-                      {i.niche_tags.length > 3 && <span className="text-[10px] text-stone-400">+{i.niche_tags.length - 3}</span>}
+                      )}
                     </div>
-                  </td>
-                  <td className="px-4 py-3 text-stone-600 text-right">
-                    {primaryFollowers(i)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`text-[10px] uppercase tracking-wide ${i.status === 'active' ? 'text-emerald-600' : i.status === 'blacklist' ? 'text-rose-600' : 'text-stone-400'}`}>
-                      {i.status}
-                    </span>
-                  </td>
+                    {i.primary_handle && (
+                      <div className="text-[12px] text-stone-500 truncate mt-0.5">
+                        {i.primary_handle}
+                      </div>
+                    )}
+                    <div className="mt-2 flex items-center justify-between text-[12px] text-stone-500 gap-2">
+                      <span className="truncate">
+                        {i.account_manager_id ? (
+                          managerNameById.get(i.account_manager_id) ?? '—'
+                        ) : (
+                          <span className="italic text-stone-400">Neasignat</span>
+                        )}
+                      </span>
+                      <span className="shrink-0 tabular-nums">{primaryFollowers(i)}</span>
+                    </div>
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+
+          {/* Desktop / tablet: table */}
+          <div className="hidden md:block bg-white border border-stone-200 rounded-xl overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-stone-50 border-b border-stone-200">
+                <tr className="text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-stone-500">
+                  <th className="px-4 py-3">Nume</th>
+                  <th className="px-4 py-3">Handle</th>
+                  <th className="px-4 py-3">Tier</th>
+                  <th className="px-4 py-3">Manager</th>
+                  <th className="px-4 py-3">Niches</th>
+                  <th className="px-4 py-3 text-right">Followers</th>
+                  <th className="px-4 py-3">Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-stone-100">
+                {items.map((i) => (
+                  <tr
+                    key={i.id}
+                    className={`hover:bg-stone-50 transition-colors ${i.status === 'active' ? '' : 'opacity-60'}`}
+                  >
+                    <td className="px-4 py-3">
+                      <Link href={`/influencers/${i.id}`} className="flex items-center gap-3 hover:text-brand-800">
+                        <div className="w-8 h-8 rounded-full bg-brand-50 text-brand-800 flex items-center justify-center text-xs font-semibold">
+                          {i.name[0]?.toUpperCase() ?? '?'}
+                        </div>
+                        <span className="font-medium text-stone-900">{i.name}</span>
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3 text-stone-600">{i.primary_handle ?? '—'}</td>
+                    <td className="px-4 py-3">
+                      {i.tier && (
+                        <span className={`text-[10px] uppercase tracking-wide font-medium px-2 py-0.5 rounded-full ${TIER_BADGE[i.tier]}`}>
+                          {i.tier}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-stone-600">
+                      {i.account_manager_id ? (
+                        managerNameById.get(i.account_manager_id) ?? '—'
+                      ) : (
+                        <span className="text-stone-400 italic">Neasignat</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap gap-1">
+                        {i.niche_tags.slice(0, 3).map((t) => (
+                          <span key={t} className="text-[10px] bg-stone-100 text-stone-700 px-1.5 py-0.5 rounded">
+                            {t}
+                          </span>
+                        ))}
+                        {i.niche_tags.length > 3 && <span className="text-[10px] text-stone-400">+{i.niche_tags.length - 3}</span>}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-stone-600 text-right tabular-nums">
+                      {primaryFollowers(i)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`text-[10px] uppercase tracking-[0.06em] font-medium ${i.status === 'active' ? 'text-emerald-700' : i.status === 'blacklist' ? 'text-rose-700' : 'text-stone-400'}`}>
+                        {i.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {totalPages > 1 && (
         <div className="flex items-center justify-between mt-4 text-sm">
-          <span className="text-stone-500">
-            {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} of {total}
+          <span className="text-stone-500 tabular-nums">
+            {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} din {total}
           </span>
           <div className="flex gap-2">
             <button
               type="button"
               disabled={page <= 1}
               onClick={() => pushFilters({ page: page - 1 })}
-              className="px-3 py-1 rounded border border-stone-300 disabled:opacity-40"
+              className="px-3 py-1.5 rounded-md border border-stone-300 hover:bg-stone-50 disabled:opacity-40 disabled:hover:bg-transparent text-stone-700"
             >
-              Prev
+              ← Anterior
             </button>
-            <span className="px-3 py-1 text-stone-600">{page} / {totalPages}</span>
+            <span className="px-3 py-1.5 text-stone-600 tabular-nums">{page} / {totalPages}</span>
             <button
               type="button"
               disabled={page >= totalPages}
               onClick={() => pushFilters({ page: page + 1 })}
-              className="px-3 py-1 rounded border border-stone-300 disabled:opacity-40"
+              className="px-3 py-1.5 rounded-md border border-stone-300 hover:bg-stone-50 disabled:opacity-40 disabled:hover:bg-transparent text-stone-700"
             >
-              Next
+              Următor →
             </button>
           </div>
         </div>
@@ -314,7 +363,7 @@ function FilterBar({
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search by name…"
-          className="flex-1 px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100"
+          className="flex-1 px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:border-brand-700 focus:ring-2 focus:ring-brand-500/20"
         />
         <select value={platform} onChange={(e) => setPlat(e.target.value)} className="px-3 py-2 border border-stone-300 rounded-lg text-sm">
           <option value="">Any platform</option>
@@ -355,7 +404,7 @@ function FilterBar({
           className="w-32 px-3 py-2 border border-stone-300 rounded-lg text-sm"
         />
         {canWrite && (
-          <button type="button" onClick={onAdd} className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm hover:bg-indigo-700 whitespace-nowrap">
+          <button type="button" onClick={onAdd} className="px-4 py-2 rounded-lg bg-brand-700 text-white text-sm hover:bg-brand-800 whitespace-nowrap">
             + Add
           </button>
         )}
@@ -370,7 +419,7 @@ function FilterBar({
               key={t}
               type="button"
               onClick={() => toggleTier(t)}
-              className={`text-xs px-2 py-0.5 rounded-full border ${active ? 'bg-indigo-600 text-white border-indigo-600' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`}
+              className={`text-xs px-2 py-0.5 rounded-full border ${active ? 'bg-brand-700 text-white border-brand-700' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`}
             >
               {t}
             </button>
@@ -387,7 +436,7 @@ function FilterBar({
               key={t}
               type="button"
               onClick={() => toggleTag(t)}
-              className={`text-xs px-2 py-0.5 rounded-full border ${active ? 'bg-indigo-600 text-white border-indigo-600' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`}
+              className={`text-xs px-2 py-0.5 rounded-full border ${active ? 'bg-brand-700 text-white border-brand-700' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`}
             >
               {t}
             </button>
@@ -404,7 +453,7 @@ function FilterBar({
 }
 
 const btnPrimary =
-  'px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm hover:bg-indigo-700 disabled:opacity-60'
+  'px-4 py-2 rounded-lg bg-brand-700 text-white text-sm hover:bg-brand-800 disabled:opacity-60'
 const btnSecondary =
   'px-4 py-2 rounded-lg bg-stone-100 text-stone-700 text-sm hover:bg-stone-200'
 

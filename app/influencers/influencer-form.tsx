@@ -135,7 +135,7 @@ export function formToPayload(f: FormValues): Record<string, unknown> {
 }
 
 const inputCls =
-  'w-full px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100'
+  'w-full px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:border-brand-700 focus:ring-2 focus:ring-brand-500/20'
 const textareaCls = `${inputCls} min-h-[60px]`
 const labelCls = 'block text-xs font-medium text-stone-600 mb-1'
 const sectionTitle = 'text-sm font-semibold text-stone-900 mt-5 mb-2'
@@ -206,12 +206,12 @@ export function InfluencerFormFields({
       </div>
 
       <Field label="Niche tags">
-        <div className="border border-stone-300 rounded-lg p-2 focus-within:border-indigo-600 focus-within:ring-2 focus-within:ring-indigo-100">
+        <div className="border border-stone-300 rounded-lg p-2 focus-within:border-brand-700 focus-within:ring-2 focus-within:ring-brand-500/20">
           <div className="flex flex-wrap gap-1.5 mb-1.5">
             {form.niche_tags.map((t) => (
-              <span key={t} className="inline-flex items-center gap-1 text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full">
+              <span key={t} className="inline-flex items-center gap-1 text-xs bg-brand-50 text-brand-800 px-2 py-0.5 rounded-full">
                 {t}
-                <button type="button" onClick={() => removeTag(t)} className="hover:text-indigo-900">×</button>
+                <button type="button" onClick={() => removeTag(t)} className="hover:text-brand-900">×</button>
               </span>
             ))}
             <input

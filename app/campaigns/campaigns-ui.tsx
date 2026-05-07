@@ -116,7 +116,7 @@ export function CampaignsUI({
               {items.map((c) => (
                 <tr key={c.id} className={c.status === 'cancelled' ? 'opacity-60' : ''}>
                   <td className="px-4 py-3">
-                    <Link href={`/campaigns/${c.id}`} className="font-medium text-stone-900 hover:text-indigo-700">
+                    <Link href={`/campaigns/${c.id}`} className="font-medium text-stone-900 hover:text-brand-800">
                       {c.name}
                     </Link>
                   </td>
@@ -223,7 +223,7 @@ function FilterBar({
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search by name…"
-          className="flex-1 px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100"
+          className="flex-1 px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:border-brand-700 focus:ring-2 focus:ring-brand-500/20"
         />
         <select
           value={brand}
@@ -242,7 +242,7 @@ function FilterBar({
           {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
         </select>
         {canCreate && (
-          <button type="button" onClick={onNew} className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm hover:bg-indigo-700 whitespace-nowrap">
+          <button type="button" onClick={onNew} className="px-4 py-2 rounded-lg bg-brand-700 text-white text-sm hover:bg-brand-800 whitespace-nowrap">
             + New campaign
           </button>
         )}
@@ -257,7 +257,7 @@ function FilterBar({
               key={s}
               type="button"
               onClick={() => toggleStatus(s)}
-              className={`text-xs px-2 py-0.5 rounded-full border ${active ? 'bg-indigo-600 text-white border-indigo-600' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`}
+              className={`text-xs px-2 py-0.5 rounded-full border ${active ? 'bg-brand-700 text-white border-brand-700' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`}
             >
               {s.replace('_', ' ')}
             </button>
@@ -274,10 +274,10 @@ function FilterBar({
 }
 
 const inputCls =
-  'w-full px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100'
+  'w-full px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:border-brand-700 focus:ring-2 focus:ring-brand-500/20'
 const textareaCls = `${inputCls} min-h-[60px]`
 const btnPrimary =
-  'px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm hover:bg-indigo-700 disabled:opacity-60'
+  'px-4 py-2 rounded-lg bg-brand-700 text-white text-sm hover:bg-brand-800 disabled:opacity-60'
 const btnSecondary =
   'px-4 py-2 rounded-lg bg-stone-100 text-stone-700 text-sm hover:bg-stone-200'
 

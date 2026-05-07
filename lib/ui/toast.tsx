@@ -74,7 +74,7 @@ export function useToast() {
   const ctx = useContext(ToastCtx)
   if (!ctx) {
     // Fallback no-op so components don't crash if Provider absent.
-    return { push: (_k: ToastKind, _m: string) => {} }
+    return { push: () => {} }
   }
   return ctx
 }

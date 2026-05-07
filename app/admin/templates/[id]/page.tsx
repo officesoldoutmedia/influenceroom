@@ -54,7 +54,7 @@ export default async function TemplateDetailPage({
   return (
     <>
       <Nav name={me?.name ?? ''} role={role} />
-      <main className="min-h-[calc(100vh-49px)] bg-stone-50 p-8">
+      <main className="bg-stone-50 px-4 sm:px-6 py-6 sm:py-10 pwa-safe-bottom">
         <div className="max-w-4xl mx-auto">
           <div className="mb-4">
             <Link href="/admin/templates" className="text-sm text-stone-500 hover:text-stone-800">← Templates</Link>
@@ -74,7 +74,7 @@ export default async function TemplateDetailPage({
             </div>
             {role === 'owner' && (
               <div className="flex gap-2 shrink-0">
-                <Link href={`/admin/templates/${id}/edit`} className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs hover:bg-indigo-700">
+                <Link href={`/admin/templates/${id}/edit`} className="px-3 py-1.5 rounded-lg bg-brand-700 text-white text-xs hover:bg-brand-800">
                   Edit
                 </Link>
               </div>

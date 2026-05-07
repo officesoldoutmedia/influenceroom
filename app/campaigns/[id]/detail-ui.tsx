@@ -12,9 +12,9 @@ type Role = 'owner' | 'manager' | 'account' | 'intern'
 type ApiResp = { ok?: boolean; error?: string; campaign?: CampaignWithJoins }
 
 const inputCls =
-  'w-full px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100'
+  'w-full px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:border-brand-700 focus:ring-2 focus:ring-brand-500/20'
 const textareaCls = `${inputCls} min-h-[60px]`
-const btnPrimary = 'px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs hover:bg-indigo-700 disabled:opacity-60'
+const btnPrimary = 'px-3 py-1.5 rounded-lg bg-brand-700 text-white text-xs hover:bg-brand-800 disabled:opacity-60'
 const btnDanger = 'px-3 py-1.5 rounded-lg bg-rose-600 text-white text-xs hover:bg-rose-700 disabled:opacity-60'
 
 function ErrorMap(code: string): string {
@@ -210,7 +210,7 @@ function EditModal({
           {error && <p className="text-sm text-rose-600">{error}</p>}
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg bg-stone-100 text-stone-700 text-sm hover:bg-stone-200">Cancel</button>
-            <button type="submit" disabled={busy} className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm hover:bg-indigo-700 disabled:opacity-60">{busy ? '...' : 'Save'}</button>
+            <button type="submit" disabled={busy} className="px-4 py-2 rounded-lg bg-brand-700 text-white text-sm hover:bg-brand-800 disabled:opacity-60">{busy ? '...' : 'Save'}</button>
           </div>
         </form>
       </div>

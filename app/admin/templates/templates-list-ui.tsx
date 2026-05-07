@@ -50,7 +50,7 @@ export function TemplatesListUI({
       <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
         <p className="text-stone-500 text-sm mb-4">Niciun template încă.</p>
         {canWrite && (
-          <Link href="/admin/templates/new" className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm hover:bg-indigo-700 inline-block">
+          <Link href="/admin/templates/new" className="px-4 py-2 rounded-lg bg-brand-700 text-white text-sm hover:bg-brand-800 inline-block">
             Creează primul template
           </Link>
         )}
@@ -76,7 +76,7 @@ export function TemplatesListUI({
           {items.map((t) => (
             <tr key={t.id} className={t.active ? '' : 'opacity-60'}>
               <td className="px-4 py-3">
-                <Link href={`/admin/templates/${t.id}`} className="font-medium text-stone-900 hover:text-indigo-700">
+                <Link href={`/admin/templates/${t.id}`} className="font-medium text-stone-900 hover:text-brand-800">
                   {t.name}
                 </Link>
                 {t.description && (

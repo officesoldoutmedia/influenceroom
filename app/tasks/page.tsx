@@ -54,14 +54,14 @@ export default async function TasksPage({
   return (
     <>
       <Nav name={me?.name ?? ''} role={role} />
-      <main className="min-h-[calc(100vh-49px)] bg-stone-50 p-8">
+      <main className="bg-stone-50 px-4 sm:px-6 py-6 sm:py-10 pwa-safe-bottom">
         <div className="max-w-5xl mx-auto">
           <div className="flex items-center justify-between mb-6">
             <h1 className="text-2xl font-semibold text-stone-900">My Tasks</h1>
             {showAllToggle && (
               <a
                 href={showAll ? '/tasks' : '/tasks?all=1'}
-                className={`px-3 py-1.5 rounded-lg text-xs ${showAll ? 'bg-indigo-600 text-white' : 'bg-stone-100 text-stone-700 hover:bg-stone-200'}`}
+                className={`px-3 py-1.5 rounded-lg text-xs ${showAll ? 'bg-brand-700 text-white' : 'bg-stone-100 text-stone-700 hover:bg-stone-200'}`}
               >
                 {showAll ? 'Showing all · click for mine' : 'Show all tasks'}
               </a>

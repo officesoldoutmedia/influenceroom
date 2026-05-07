@@ -1,8 +1,9 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Fraunces } from "next/font/google";
 import "./globals.css";
 import { SwRegister } from "./sw-register";
 import { InstallPrompt } from "./install-prompt";
+import { ToastProvider } from "@/lib/ui";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -12,6 +13,13 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
+  subsets: ["latin"],
+  axes: ["opsz"],
+  style: ["normal", "italic"],
 });
 
 export const metadata: Metadata = {
@@ -30,7 +38,10 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#6366F1",
+  themeColor: "#C2410C",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -40,13 +51,15 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      lang="ro"
+      className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
-        {children}
-        <InstallPrompt />
-        <SwRegister />
+      <body className="min-h-full flex flex-col bg-stone-50 text-stone-900">
+        <ToastProvider>
+          {children}
+          <InstallPrompt />
+          <SwRegister />
+        </ToastProvider>
       </body>
     </html>
   );

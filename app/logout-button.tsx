@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { Button } from '@/lib/ui'
 
 export function LogoutButton() {
   const [busy, setBusy] = useState(false)
@@ -10,18 +11,20 @@ export function LogoutButton() {
     try {
       await fetch('/api/auth/logout', { method: 'POST' })
     } finally {
-      window.location.href = '/login'
+      window.location.assign('/login')
     }
   }
 
   return (
-    <button
+    <Button
       type="button"
       onClick={logout}
-      disabled={busy}
-      className="px-4 py-2 rounded-lg bg-stone-900 text-white text-sm hover:bg-stone-800 disabled:opacity-60"
+      loading={busy}
+      variant="ghost"
+      size="sm"
+      className="hidden sm:inline-flex"
     >
-      Sign out
-    </button>
+      Ieșire
+    </Button>
   )
 }

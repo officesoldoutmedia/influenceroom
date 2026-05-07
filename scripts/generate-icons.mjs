@@ -12,7 +12,7 @@ const PROJECT_ROOT = path.resolve(import.meta.dirname, '..')
 const OUT_ICONS = path.join(PROJECT_ROOT, 'public', 'icons')
 const OUT_FAVICON = path.join(PROJECT_ROOT, 'public', 'favicon.ico')
 
-const BG = '#6366F1' // indigo-500
+const BG = '#C2410C' // brand-700 (burnt amber)
 
 function svg({ size, padding = 0 }) {
   // Padding is in absolute px applied symmetrically (used for maskable safe zone).

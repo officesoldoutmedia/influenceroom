@@ -62,14 +62,14 @@ export default async function TemplatesPage() {
   return (
     <>
       <Nav name={me?.name ?? ''} role={role} />
-      <main className="min-h-[calc(100vh-49px)] bg-stone-50 p-8">
+      <main className="bg-stone-50 px-4 sm:px-6 py-6 sm:py-10 pwa-safe-bottom">
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center justify-between mb-6">
             <h1 className="text-2xl font-semibold text-stone-900">Templates</h1>
             {role === 'owner' && (
               <Link
                 href="/admin/templates/new"
-                className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm hover:bg-indigo-700"
+                className="px-4 py-2 rounded-lg bg-brand-700 text-white text-sm hover:bg-brand-800"
               >
                 + New Template
               </Link>

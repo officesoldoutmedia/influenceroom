@@ -13,7 +13,7 @@ import {
 type ApiResp = { ok?: boolean; error?: string; influencer?: Influencer }
 
 const btnPrimary =
-  'px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm hover:bg-indigo-700 disabled:opacity-60'
+  'px-4 py-2 rounded-lg bg-brand-700 text-white text-sm hover:bg-brand-800 disabled:opacity-60'
 const btnSecondary =
   'px-4 py-2 rounded-lg bg-stone-100 text-stone-700 text-sm hover:bg-stone-200'
 const btnDanger =

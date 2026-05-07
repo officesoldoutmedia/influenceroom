@@ -84,7 +84,7 @@ export function InstallPrompt() {
 
   return (
     <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 max-w-md w-[calc(100%-2rem)] bg-white border border-stone-200 rounded-xl shadow-lg p-3 flex items-center gap-3">
-      <div className="w-9 h-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-sm font-semibold shrink-0">
+      <div className="w-9 h-9 rounded-lg bg-brand-700 text-white flex items-center justify-center text-sm font-semibold shrink-0">
         IR
       </div>
       <div className="flex-1 text-sm text-stone-800">
@@ -100,7 +100,7 @@ export function InstallPrompt() {
         <button
           type="button"
           onClick={install}
-          className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-medium hover:bg-indigo-700"
+          className="px-3 py-1.5 rounded-lg bg-brand-700 text-white text-xs font-medium hover:bg-brand-800"
         >
           Instalează
         </button>

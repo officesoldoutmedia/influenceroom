@@ -133,7 +133,7 @@ export function TasksUI({
                     <div className="flex-1 min-w-0">
                       <div className="text-stone-900 truncate">{t.title}</div>
                       {t.campaign && (
-                        <Link href={`/campaigns/${t.campaign.id}`} className="text-xs text-stone-500 hover:text-indigo-700">
+                        <Link href={`/campaigns/${t.campaign.id}`} className="text-xs text-stone-500 hover:text-brand-800">
                           {t.campaign.name}
                         </Link>
                       )}

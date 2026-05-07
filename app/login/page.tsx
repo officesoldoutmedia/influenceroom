@@ -23,12 +23,20 @@ export default async function LoginPage({
     .order('created_at', { ascending: false })
 
   return (
-    <main className="min-h-screen bg-stone-50 flex items-center justify-center p-6">
+    <main className="min-h-screen bg-stone-50 flex flex-col items-center justify-center px-4 py-10 sm:py-16 pwa-safe-top pwa-safe-bottom">
       <div className="w-full max-w-3xl">
-        <h1 className="text-2xl font-semibold text-stone-900 mb-1 text-center">
-          Influencer Room
-        </h1>
-        <p className="text-stone-500 text-sm mb-8 text-center">Selectează contul</p>
+        <div className="text-center mb-10 sm:mb-12">
+          <div className="inline-flex items-center gap-2 mb-4">
+            <span className="inline-block w-2 h-2 rounded-full bg-brand-700" aria-hidden="true" />
+            <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">
+              Internal access
+            </span>
+          </div>
+          <h1 className="font-display text-4xl sm:text-5xl font-semibold text-stone-900 leading-[1.05] mb-3">
+            Influencer Room
+          </h1>
+          <p className="text-stone-600 text-[15px]">Selectează contul tău pentru a continua.</p>
+        </div>
         <LoginUI members={(members ?? []) as LoginMember[]} next={sp.next ?? '/'} />
       </div>
     </main>

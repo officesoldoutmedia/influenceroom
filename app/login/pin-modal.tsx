@@ -88,15 +88,16 @@ export function PinModal({ user, next, onClose }: Props) {
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 bg-stone-900/40 flex items-center justify-center p-4"
+      aria-labelledby="pin-user-name"
+      className="fixed inset-0 z-50 bg-stone-900/40 backdrop-blur-[1px] flex items-center justify-center p-4"
       onClick={onClose}
     >
       <div
-        className={`bg-white rounded-2xl shadow-xl p-8 w-full max-w-sm ${shake ? 'animate-shake' : ''}`}
+        className={`bg-white rounded-2xl shadow-[0_16px_40px_-8px_rgb(0_0_0_/_0.18)] p-7 sm:p-8 w-full max-w-sm ${shake ? 'animate-shake' : ''}`}
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-lg font-semibold text-stone-900 text-center">{user.name}</h2>
-        <p className="text-sm text-stone-500 text-center mb-6">Introdu PIN-ul</p>
+        <h2 id="pin-user-name" className="font-display text-xl text-stone-900 text-center">{user.name}</h2>
+        <p className="text-sm text-stone-500 text-center mt-1 mb-6">Introdu PIN-ul</p>
         <div className="flex justify-center gap-3">
           {digits.map((d, i) => (
             <input
@@ -110,11 +111,12 @@ export function PinModal({ user, next, onClose }: Props) {
               disabled={locked || submitting}
               onChange={(e) => onChange(i, e.target.value)}
               onKeyDown={(e) => onKeyDown(i, e)}
-              className="w-12 h-14 text-center text-2xl border border-stone-300 rounded-lg focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 disabled:bg-stone-100 disabled:text-stone-400"
+              aria-label={`Cifra ${i + 1}`}
+              className="w-12 h-14 sm:w-14 sm:h-16 text-center text-2xl font-display font-medium border border-stone-300 rounded-lg focus:outline-none focus:border-brand-700 focus:ring-2 focus:ring-brand-500/20 disabled:bg-stone-100 disabled:text-stone-400 transition-colors"
             />
           ))}
         </div>
-        <p className="h-5 text-sm text-rose-600 text-center mt-3">
+        <p className="min-h-[20px] text-sm text-rose-600 text-center mt-4">
           {error ?? ' '}
         </p>
       </div>
