@@ -2,14 +2,15 @@ import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
 import { Nav, type NavRole } from '@/app/_components/nav'
-import { TeamUI, type TeamMember } from './team-ui'
+import { BrandsUI, type Brand } from './brands-ui'
 
 export const dynamic = 'force-dynamic'
 
-export default async function AdminTeamPage() {
+export default async function BrandsPage() {
   const h = await headers()
-  if (h.get('x-user-role') !== 'owner') redirect('/')
-  const currentUserId = h.get('x-user-id') ?? ''
+  const userId = h.get('x-user-id')
+  const role = (h.get('x-user-role') as NavRole | null) ?? null
+  if (!userId || !role) redirect('/login')
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -19,25 +20,22 @@ export default async function AdminTeamPage() {
 
   const { data: me } = await supabase
     .from('team_members')
-    .select('name, role')
-    .eq('id', currentUserId)
+    .select('name')
+    .eq('id', userId)
     .maybeSingle()
 
-  const { data: members } = await supabase
-    .from('team_members')
-    .select('id, name, email, role, avatar_url, active, created_at')
+  const { data: brands } = await supabase
+    .from('brands')
+    .select('id, name, contact_person, contact_email, contact_phone, logo_url, notes, billing_data, status, created_at')
     .order('created_at', { ascending: false })
 
   return (
     <>
-      <Nav name={me?.name ?? ''} role={(me?.role ?? 'owner') as NavRole} />
+      <Nav name={me?.name ?? ''} role={role} />
       <main className="min-h-[calc(100vh-49px)] bg-stone-50 p-8">
         <div className="max-w-5xl mx-auto">
-          <h1 className="text-2xl font-semibold text-stone-900 mb-6">Team</h1>
-          <TeamUI
-            initialMembers={(members ?? []) as TeamMember[]}
-            currentUserId={currentUserId}
-          />
+          <h1 className="text-2xl font-semibold text-stone-900 mb-6">Brands</h1>
+          <BrandsUI initialBrands={(brands ?? []) as Brand[]} role={role} />
         </div>
       </main>
     </>

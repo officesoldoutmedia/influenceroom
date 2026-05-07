@@ -1,7 +1,7 @@
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
-import { LogoutButton } from './logout-button'
+import { Nav, type NavRole } from './_components/nav'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,24 +25,16 @@ export default async function Home() {
   if (!user) redirect('/login')
 
   return (
-    <main className="min-h-screen bg-stone-50 p-8">
-      <div className="max-w-3xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-2xl font-semibold text-stone-900">Welcome, {user.name}</h1>
-          <LogoutButton />
+    <>
+      <Nav name={user.name} role={user.role as NavRole} />
+      <main className="min-h-[calc(100vh-49px)] bg-stone-50 p-8">
+        <div className="max-w-5xl mx-auto">
+          <h1 className="text-2xl font-semibold text-stone-900 mb-2">
+            Welcome, {user.name}
+          </h1>
+          <p className="text-stone-500 text-sm">Sprint 2 in progress.</p>
         </div>
-        <p className="text-stone-500 text-sm">Sprint 1 in progress.</p>
-        {user.role === 'owner' && (
-          <nav className="mt-6">
-            <a
-              href="/admin/team"
-              className="inline-block px-4 py-2 rounded-lg bg-white shadow-sm text-sm text-stone-900 hover:shadow-md"
-            >
-              Team →
-            </a>
-          </nav>
-        )}
-      </div>
-    </main>
+      </main>
+    </>
   )
 }
