@@ -8,8 +8,10 @@ type LinkDef = { href: string; label: string; show?: boolean }
 export function Nav({ name, role }: { name: string; role: NavRole }) {
   const links: LinkDef[] = [
     { href: '/', label: 'Dashboard' },
-    { href: '/brands', label: 'Brands' },
+    { href: '/campaigns', label: 'Campaigns' },
     { href: '/influencers', label: 'Influencers' },
+    { href: '/brands', label: 'Brands' },
+    { href: '/admin/templates', label: 'Templates', show: role === 'owner' || role === 'manager' },
     { href: '/admin/team', label: 'Team', show: role === 'owner' },
   ]
 
