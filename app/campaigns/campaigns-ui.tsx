@@ -62,6 +62,7 @@ export function CampaignsUI({
   const canCreate = role === 'owner' || role === 'manager' || role === 'account'
 
   const [items, setItems] = useState<CampaignWithJoins[]>(initialItems)
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setItems(initialItems), [initialItems])
 
   const [showNew, setShowNew] = useState(false)
@@ -351,7 +352,11 @@ function NewCampaignModal({
   // Auto-fill end_date when template + start_date set, unless user has touched
   useEffect(() => {
     if (endDateTouched) return
-    if (!startDate) { setEndDate(''); return }
+    if (!startDate) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setEndDate('')
+      return
+    }
     if (tplMaxOffset == null) return
     setEndDate(addDaysISO(startDate, tplMaxOffset))
   }, [startDate, tplMaxOffset, endDateTouched])

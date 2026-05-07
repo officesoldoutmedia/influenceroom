@@ -1,4 +1,4 @@
-import { layout, esc, button, card } from './_layout'
+import { layout, esc, card } from './_layout'
 
 export type DeadlineReminderParams = {
   recipientName: string

@@ -6,19 +6,59 @@ Internal-only app for an influencer marketing & artist management agency
 ## Read first
 - **Single source of truth:** `docs/influencer-room-prd.md` (read top-to-bottom
   before making changes)
+- **End-user walkthrough (Romanian):** `docs/WALKTHROUGH.md`
 - **Tech stack:** Next.js 16 + TypeScript + Supabase (PIN auth + RLS) + Tailwind
-  + shadcn/ui + Resend
+  + Resend
 - **Adapter:** `@opennextjs/cloudflare` (NOT `@cloudflare/next-on-pages` — deprecated)
 - **Hosting:** Cloudflare Workers, deployed via **GitHub Actions**
   (`.github/workflows/deploy.yml`). NOT Workers Builds Git integration.
 - **Repo:** github.com/officesoldoutmedia/influenceroom (private)
 - **Live:** https://influenceroom.office-2e5.workers.dev
 
+## Sprint status
+**All 7 sprints complete. Production-ready, in beta testing with Influencer Room team.**
+
+Sprint 1 — auth + team CRUD · Sprint 2 — brands + influencers · Sprint 3 —
+campaigns + tasks + roster · Sprint 4 (folded into 3) — task board · Sprint 5
+— email infrastructure + queue · Sprint 6 (cron deferred — see "Pending
+pre-public-launch" below) · Sprint 7 — drag-and-drop, real owner seed,
+walkthrough doc, lint cleanup.
+
+## Pending pre-public-launch (Stefan-controlled, not blocking beta)
+- **Resend account + verified sender domain** (e.g. `notify@influenceroom.<tbd>`).
+  Until set, the worker runs in *simulated mode*: emails are marked `sent` in DB
+  with `resend_message_id=null`, but no actual delivery happens. UI surfaces
+  "— (simulated, no Resend key)" in the notification detail modal so it's visible.
+- **Workers Paid plan upgrade ($5/mo)** for cron auto-trigger. Until then,
+  `[triggers]` block is removed from `wrangler.toml`. Workers Free has a 5-cron
+  account-wide limit and the existing Sold Out Media workers already use the slots.
+  Manual flush available in `/admin/notifications` → "Run worker now".
+- **Wiring once both above are done:**
+  ```
+  wrangler secret put RESEND_API_KEY
+  wrangler secret put EMAIL_SENDER     # e.g. notify@influenceroom.ro
+  wrangler secret put EMAIL_REPLY_TO   # e.g. office@soldoutmedia.ro
+  ```
+  Then re-add `[triggers]` block to `wrangler.toml` (commit `b99d98c` removed it
+  with a placeholder comment showing the original config) and push.
+
+## Known limitations (deferred to Phase 2 / future sprints)
+- **Custom domain not configured** — using default `*.workers.dev` URL.
+- **No file uploads** (briefs/contracts/screenshots) — Supabase Storage with
+  signed URLs is in PRD §11 backlog.
+- **No public read-only campaign page** for clients (token-based shareable link).
+- **No CSV bulk import** — Stefan adds influencers/brands manually via UI.
+- **Image optimization disabled** — using `<img>` instead of `next/image`. To
+  enable, configure remote patterns in `next.config.mjs` and switch UI components.
+- **Drag-and-drop is same-container only** — task moves between groups via
+  Edit modal → Group dropdown (the dropdown is in the existing edit form).
+  Multi-container DnD adds ~300 lines for an edge case the dropdown solves.
+
 ## Key conventions
 - PIN auth: 4 digits, bcrypt (Postgres pgcrypto, cost 10), jose HS256 JWT
   in HttpOnly cookie `ir_session`, 30-day expiry, 5-attempt lockout
 - Conventional commits (feat:, fix:, chore:, refactor:, docs:)
-- `pnpm run typecheck` must pass before any commit
+- `pnpm run typecheck` + `pnpm run lint` must pass before any commit
 - Cron handlers gate to Europe/Bucharest local time in handler body
   (DST-safe), NOT in cron schedule
 
@@ -26,9 +66,7 @@ Internal-only app for an influencer marketing & artist management agency
 - Edge runtime is NOT supported by @opennextjs/cloudflare for API route
   handlers — use default Node runtime (no `export const runtime = 'edge'`)
 - Worker size limit: 3 MiB Free / 10 MiB Paid (compressed) — keep deps lean
-- Free plan: 5 cron triggers per account total. `[triggers]` block in
-  `wrangler.toml` is currently disabled (Sprint 6 decision pending —
-  upgrade to Paid \$5/mo or migrate to GitHub Actions cron).
+- Free plan: 5 cron triggers per account total (see Pending pre-public-launch)
 
 ## Lessons learned (gotchas — read before changing infra)
 
@@ -40,8 +78,8 @@ Internal-only app for an influencer marketing & artist management agency
 
 2. **`wrangler deploy --keep-vars` is mandatory.** Without `--keep-vars`,
    wrangler wipes Worker Variables and Secrets on every deploy that doesn't
-   declare them in `wrangler.toml`. We keep secrets in the dashboard / set via
-   `wrangler secret put`, so the GHA workflow MUST pass `--keep-vars`.
+   declare them in `wrangler.toml`. We keep secrets via `wrangler secret put`,
+   so the GHA workflow MUST pass `--keep-vars`.
 
 3. **Deploy via GitHub Actions, NOT Workers Builds.** Cloudflare Workers
    Builds Git integration's OAuth flow was flaky on the `officesoldoutmedia`
@@ -51,23 +89,26 @@ Internal-only app for an influencer marketing & artist management agency
 
 4. **Worker secrets are runtime-only, not build-time.** `NEXT_PUBLIC_*` vars
    are conventionally inlined at build time. Currently all Supabase access is
-   server-side, so we pass them at runtime via Worker secrets (see
-   `wrangler secret put`). If we add browser-side Supabase usage, we must
-   also pass `NEXT_PUBLIC_*` to the GHA build step env so they're inlined
-   into the client bundle.
+   server-side, so we pass them at runtime via Worker secrets.
+
+5. **PostgREST JSONB numeric filter syntax is `->key::int`, not `->>key::numeric`.**
+   The text-arrow (`->>`) returns text and the cast to numeric silently fails
+   to filter — returns 0 rows without error. Use single-arrow (`->`) to keep
+   JSONB type, then cast. See `lib/influencers/search.ts`.
+
+6. **`/api/cron/*` excluded from middleware matcher.** Cron endpoints
+   authenticate via `x-cron-secret` header, not session cookie. Adding new
+   cron endpoints requires no middleware change since the matcher already
+   excludes the prefix.
 
 ## Useful scripts
 - `pnpm dev` — local Next.js dev (Node runtime)
 - `pnpm preview` — local Workers runtime simulation via opennextjs-cloudflare
 - `pnpm run build` — Next.js production build
 - `pnpm run typecheck` — tsc --noEmit
+- `pnpm run lint` — ESLint
 - `pnpm run cf-typegen` — regenerate cloudflare-env.d.ts after wrangler.toml changes
-
-## Sprint status
-Sprint 1 Phase 2 complete. Auth flow live: `/login` user picker → 4-digit PIN
-modal → JWT cookie → middleware enforces on all routes except `/login` and
-`/api/auth/*`. PIN lockout (5 attempts → 5 min) verified end-to-end.
-Next: Sprint 1 Phase 3 — `/admin/team` CRUD.
+- `npx tsx scripts/smoke-email.ts` — render all 5 templates with mock data
 
 ## Hand-off note
 This app is intended for transfer to the agency owner ("Stefan's friend")

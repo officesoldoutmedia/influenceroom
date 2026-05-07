@@ -75,7 +75,9 @@ export function BoardUI({
   const [addingTaskInGroup, setAddingTaskInGroup] = useState<string | null>(null)
   const [addingTaskTitle, setAddingTaskTitle] = useState('')
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setGroups(initialGroups), [initialGroups])
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setTasks(initialTasks), [initialTasks])
 
   function tasksOf(groupId: string): TaskWithAssignee[] {

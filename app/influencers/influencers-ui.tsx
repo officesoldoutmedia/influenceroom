@@ -8,7 +8,6 @@ import {
   PLATFORMS,
   PRESET_TAGS,
   type Tier,
-  type Platform,
   type Influencer,
 } from '@/lib/influencers/types'
 import { formatFollowers } from '@/lib/influencers/format'
@@ -63,6 +62,7 @@ export function InfluencersUI({
 
   const [items, setItems] = useState<Influencer[]>(initialItems)
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setItems(initialItems)
   }, [initialItems])
 

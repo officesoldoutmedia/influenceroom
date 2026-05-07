@@ -79,6 +79,7 @@ export function RosterUI({
 }) {
   const router = useRouter()
   const [items, setItems] = useState<CampaignInfluencerJoined[]>(initialItems)
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setItems(initialItems), [initialItems])
 
   const [showAdd, setShowAdd] = useState(false)

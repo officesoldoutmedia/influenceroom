@@ -394,7 +394,7 @@ function ResetPinModal({
         </Field>
         {confirm && (
           <p className="text-sm text-amber-700">
-            Sigur? PIN-ul actual va fi înlocuit cu <code>{pin}</code>. Click "Confirm" încă o dată.
+            Sigur? PIN-ul actual va fi înlocuit cu <code>{pin}</code>. Click &quot;Confirm&quot; încă o dată.
           </p>
         )}
         {error && <p className="text-sm text-rose-600">{error}</p>}

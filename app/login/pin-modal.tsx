@@ -45,7 +45,7 @@ export function PinModal({ user, next, onClose }: Props) {
       })
 
       if (res.ok) {
-        window.location.href = next || '/'
+        window.location.assign(next || '/')
         return
       }
 

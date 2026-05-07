@@ -15,7 +15,6 @@ const inputCls =
   'w-full px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100'
 const textareaCls = `${inputCls} min-h-[60px]`
 const btnPrimary = 'px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs hover:bg-indigo-700 disabled:opacity-60'
-const btnSecondary = 'px-3 py-1.5 rounded-lg bg-stone-100 text-stone-700 text-xs hover:bg-stone-200'
 const btnDanger = 'px-3 py-1.5 rounded-lg bg-rose-600 text-white text-xs hover:bg-rose-700 disabled:opacity-60'
 
 function ErrorMap(code: string): string {
