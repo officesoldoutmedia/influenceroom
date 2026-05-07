@@ -1,5 +1,6 @@
--- Dev seed: placeholder owner. PRD §13 — replace before deploy.
+-- Initial owner seed. Stefan can update self via /admin/team after login.
+-- Idempotent — only inserts if email not already present.
 
 INSERT INTO team_members (name, email, pin_hash, role, active)
-VALUES ('Founder', 'founder@influencerroom.local', hash_pin('0000'), 'owner', true)
+VALUES ('Stefan Sprianu', 'office@soldoutmedia.ro', hash_pin('1234'), 'owner', true)
 ON CONFLICT (email) DO NOTHING;

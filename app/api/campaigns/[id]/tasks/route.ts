@@ -50,6 +50,21 @@ export async function POST(
   const createdBy = h.get('x-user-id')
 
   const supabase = admin()
+
+  // Append new task at end of its group (or ungrouped pool)
+  const groupFilter = body.group_id ?? null
+  let positionQuery = supabase
+    .from('tasks')
+    .select('position')
+    .eq('campaign_id', id)
+    .order('position', { ascending: false })
+    .limit(1)
+  positionQuery = groupFilter
+    ? positionQuery.eq('group_id', groupFilter)
+    : positionQuery.is('group_id', null)
+  const { data: lastRow } = await positionQuery.maybeSingle<{ position: number }>()
+  const nextPosition = (lastRow?.position ?? -1) + 1
+
   const { data, error } = await supabase
     .from('tasks')
     .insert({
@@ -61,6 +76,7 @@ export async function POST(
       status: 'todo',
       assignee_id: body.assignee_id ?? null,
       due_date: body.due_date ?? null,
+      position: nextPosition,
       created_by: createdBy,
     })
     .select('*, assignee:team_members!tasks_assignee_id_fkey(id, name, avatar_url)')

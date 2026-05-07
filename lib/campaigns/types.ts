@@ -43,6 +43,7 @@ export type Task = {
   priority: TaskPriority
   due_date: string | null
   completed_at: string | null
+  position: number
   created_at: string
   created_by: string | null
 }

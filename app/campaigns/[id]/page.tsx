@@ -64,7 +64,7 @@ export default async function CampaignDetailPage({
       .from('tasks')
       .select('*, assignee:team_members!tasks_assignee_id_fkey(id, name, avatar_url)')
       .eq('campaign_id', id)
-      .order('created_at'),
+      .order('position', { ascending: true }),
     supabase.from('brands').select('id, name').eq('status', 'active').order('name'),
     supabase.from('team_members').select('id, name, role').eq('active', true).order('name'),
     supabase
