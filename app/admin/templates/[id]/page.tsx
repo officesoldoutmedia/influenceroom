@@ -61,17 +61,24 @@ export default async function TemplateDetailPage({
           </div>
           <header className="bg-white rounded-2xl shadow-sm p-6 mb-4 flex items-start justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-semibold text-stone-900">{template.name}</h1>
+              <div className="flex items-center gap-3">
+                <h1 className="text-2xl font-semibold text-stone-900">{template.name}</h1>
+                <span className={`text-[10px] uppercase tracking-wide font-medium px-2 py-0.5 rounded-full ${template.active ? 'bg-emerald-100 text-emerald-700' : 'bg-stone-200 text-stone-600'}`}>
+                  {template.active ? 'active' : 'inactive'}
+                </span>
+              </div>
               {template.description && <p className="text-sm text-stone-500 mt-2">{template.description}</p>}
+              <p className="text-xs text-stone-500 mt-2">
+                Durată standard: {template.default_duration_days} zile · {template.default_task_groups.length} grupuri
+              </p>
             </div>
-            <div className="flex gap-2 shrink-0">
-              <button type="button" disabled className="px-3 py-1.5 rounded-lg bg-stone-100 text-stone-400 text-xs cursor-not-allowed">
-                Edit (Sprint 7)
-              </button>
-              <button type="button" disabled className="px-3 py-1.5 rounded-lg bg-stone-100 text-stone-400 text-xs cursor-not-allowed">
-                Duplicate (Sprint 7)
-              </button>
-            </div>
+            {role === 'owner' && (
+              <div className="flex gap-2 shrink-0">
+                <Link href={`/admin/templates/${id}/edit`} className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs hover:bg-indigo-700">
+                  Edit
+                </Link>
+              </div>
+            )}
           </header>
 
           <div className="space-y-3">

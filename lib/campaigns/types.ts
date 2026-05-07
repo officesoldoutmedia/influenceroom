@@ -76,6 +76,7 @@ export type CampaignTemplate = {
   id: string
   name: string
   description: string | null
+  default_duration_days: number
   default_task_groups: TemplateGroupDef[]
   active: boolean
   created_at: string
