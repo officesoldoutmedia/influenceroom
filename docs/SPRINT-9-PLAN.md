@@ -16,14 +16,14 @@
 
 | Faza | Scope | Estimare |
 |------|-------|----------|
-| 0 | Frontend audit (await screenshots de la Stefan) + propunere design system | ~1.5h |
+| 0 | Frontend audit (code-driven; screenshots TBD by Stefan) + design system | ✅ |
 | 1 | Currency RON → EUR pe influenceri | ~30 min |
 | 2 | Eliminate templates + starter pack hardcoded | ~1h |
 | 3 | Deliverables + Milestones schema + UI pe /campaigns/[id] | ~2h |
 | 4 | Multi-account junction | ~45 min |
 | 5 | RLS refactor — account scoping pe influencers + campaigns + tasks; owner bypass | ~1.5h |
 | 6 | Email obligatoriu pe influencers + sistem notificări deadline (necesită Workers Paid + cron) | ~1.5h |
-| 7 | Frontend polish — implementare design system aprobat în Faza 0 | ~3-4h |
+| 7 | Frontend polish — design system applied to all pages + mobile/PWA polish | ✅ partial — campaign board mobile + per-page modals → <Dialog> deferred |
 
 ## Dependencies critice
 
