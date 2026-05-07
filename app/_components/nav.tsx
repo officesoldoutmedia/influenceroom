@@ -13,6 +13,7 @@ export function Nav({ name, role }: { name: string; role: NavRole }) {
     { href: '/influencers', label: 'Influencers' },
     { href: '/brands', label: 'Brands' },
     { href: '/admin/templates', label: 'Templates', show: role === 'owner' || role === 'manager' },
+    { href: '/admin/notifications', label: 'Notifications', show: role === 'owner' },
     { href: '/admin/team', label: 'Team', show: role === 'owner' },
   ]
 

@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { headers } from 'next/headers'
 import { createClient } from '@supabase/supabase-js'
 import { CAMPAIGN_STATUSES, type CampaignStatus } from '@/lib/campaigns/types'
 import { requireCampaignWriter } from '@/lib/auth/campaign'
+import { enqueueNotification } from '@/lib/notifications/enqueue'
+import { APP_URL } from '@/lib/email/client'
 
 function admin() {
   return createClient(
@@ -108,6 +111,15 @@ export async function PATCH(
   }
 
   const supabase = admin()
+
+  // Capture previous status to detect draft → active transition for hooks
+  const { data: prev } = await supabase
+    .from('campaigns')
+    .select('status')
+    .eq('id', id)
+    .maybeSingle<{ status: string }>()
+  const previousStatus = prev?.status ?? null
+
   const { data, error } = await supabase
     .from('campaigns')
     .update(update)
@@ -119,7 +131,15 @@ export async function PATCH(
         owner:team_members!campaigns_owner_id_fkey(id, name, role, avatar_url)
       `,
     )
-    .maybeSingle()
+    .maybeSingle<{
+      id: string
+      name: string
+      status: string
+      start_date: string | null
+      end_date: string | null
+      brand: { id: string; name: string } | null
+      owner: { id: string; name: string } | null
+    }>()
 
   if (error) {
     return NextResponse.json({ ok: false, error: 'server_error', detail: error.message }, { status: 500 })
@@ -127,6 +147,52 @@ export async function PATCH(
   if (!data) {
     return NextResponse.json({ ok: false, error: 'not_found' }, { status: 404 })
   }
+
+  // Hook: campaign_started on draft → active
+  try {
+    if (previousStatus === 'draft' && data.status === 'active') {
+      const h = await headers()
+      const userId = h.get('x-user-id')
+      const campaignUrl = `${APP_URL}/campaigns/${data.id}`
+      const ownerName = data.owner?.name ?? 'Cineva'
+      const brandName = data.brand?.name ?? '—'
+
+      const [{ count: confirmedCount }, { data: recipients }] = await Promise.all([
+        supabase
+          .from('campaign_influencers')
+          .select('id', { count: 'exact', head: true })
+          .eq('campaign_id', data.id)
+          .eq('status', 'confirmed'),
+        supabase
+          .from('team_members')
+          .select('id, name, email, role, active')
+          .eq('active', true)
+          .neq('id', userId ?? ''),
+      ])
+
+      for (const r of recipients ?? []) {
+        await enqueueNotification(
+          {
+            type: 'campaign_started',
+            params: {
+              recipientName: r.name,
+              campaignName: data.name,
+              brandName,
+              ownerName,
+              startDate: data.start_date,
+              endDate: data.end_date,
+              confirmedInfluencersCount: confirmedCount ?? 0,
+              campaignUrl,
+            },
+          },
+          { recipient: r, related_campaign_id: data.id },
+        )
+      }
+    }
+  } catch (err) {
+    console.error('[campaign PATCH hooks] error:', err)
+  }
+
   return NextResponse.json({ ok: true, campaign: data })
 }
 
