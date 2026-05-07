@@ -79,3 +79,58 @@ export type CampaignTemplate = {
   active: boolean
   created_at: string
 }
+
+export const JUNCTION_STATUSES = [
+  'pitched',
+  'negotiating',
+  'confirmed',
+  'content_in_review',
+  'published',
+  'paid',
+  'cancelled',
+] as const
+export type JunctionStatus = (typeof JUNCTION_STATUSES)[number]
+
+// Forward-only workflow. cancelled is reachable from any non-terminal state.
+export const NEXT_JUNCTION_STATES: Record<JunctionStatus, JunctionStatus[]> = {
+  pitched: ['negotiating', 'cancelled'],
+  negotiating: ['confirmed', 'cancelled'],
+  confirmed: ['content_in_review', 'cancelled'],
+  content_in_review: ['published', 'cancelled'],
+  published: ['paid', 'cancelled'],
+  paid: [],
+  cancelled: [],
+}
+
+export type Performance = {
+  views?: number
+  likes?: number
+  saves?: number
+  reach?: number
+  comments?: number
+  shares?: number
+}
+
+export type CampaignInfluencer = {
+  id: string
+  campaign_id: string
+  influencer_id: string
+  agreed_fee: number | null
+  deliverables: string | null
+  status: JunctionStatus
+  publish_date: string | null
+  post_url: string | null
+  performance: Performance
+  notes: string | null
+  created_at: string
+}
+
+export type CampaignInfluencerJoined = CampaignInfluencer & {
+  influencer: {
+    id: string
+    name: string
+    primary_handle: string | null
+    tier: string | null
+    platforms: Record<string, { handle?: string; followers?: number; engagement_rate?: number }>
+  } | null
+}

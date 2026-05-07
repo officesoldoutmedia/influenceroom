@@ -79,7 +79,7 @@ export default async function CampaignDetailPage({
 
   if (!campaign) notFound()
 
-  const [{ data: groups }, { data: tasks }, { data: brands }, { data: members }] = await Promise.all([
+  const [{ data: groups }, { data: tasks }, { data: brands }, { data: members }, { data: junctions }] = await Promise.all([
     supabase.from('task_groups').select('*').eq('campaign_id', id).order('position'),
     supabase
       .from('tasks')
@@ -88,7 +88,16 @@ export default async function CampaignDetailPage({
       .order('created_at'),
     supabase.from('brands').select('id, name').eq('status', 'active').order('name'),
     supabase.from('team_members').select('id, name, role').eq('active', true).order('name'),
+    supabase
+      .from('campaign_influencers')
+      .select('id, status, agreed_fee')
+      .eq('campaign_id', id),
   ])
+
+  const junctionsArr = (junctions ?? []) as { status: string; agreed_fee: number | null }[]
+  const junctionConfirmed = junctionsArr.filter((j) => j.status === 'confirmed').length
+  const junctionPublished = junctionsArr.filter((j) => j.status === 'published' || j.status === 'paid').length
+  const junctionTotalFee = junctionsArr.reduce((acc, j) => acc + (j.agreed_fee ?? 0), 0)
 
   const groupsArr = (groups ?? []) as TaskGroup[]
   const tasksArr = (tasks ?? []) as TaskWithAssignee[]
@@ -164,6 +173,26 @@ export default async function CampaignDetailPage({
               )}
             </section>
           )}
+
+          <section className="bg-white rounded-2xl shadow-sm p-5 mb-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-semibold text-stone-900">Influencers</h2>
+                <p className="text-xs text-stone-500 mt-1">
+                  {junctionsArr.length} în roster
+                  {junctionConfirmed > 0 && ` · ${junctionConfirmed} confirmed`}
+                  {junctionPublished > 0 && ` · ${junctionPublished} published`}
+                  {junctionTotalFee > 0 && ` · total ${junctionTotalFee.toLocaleString('ro-RO')} RON`}
+                </p>
+              </div>
+              <Link
+                href={`/campaigns/${campaign.id}/influencers`}
+                className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs hover:bg-indigo-700"
+              >
+                Open roster →
+              </Link>
+            </div>
+          </section>
 
           <section className="bg-white rounded-2xl shadow-sm p-6">
             <div className="flex items-center justify-between mb-4">

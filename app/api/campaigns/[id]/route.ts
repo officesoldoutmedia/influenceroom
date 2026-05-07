@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { headers } from 'next/headers'
 import { createClient } from '@supabase/supabase-js'
 import { CAMPAIGN_STATUSES, type CampaignStatus } from '@/lib/campaigns/types'
+import { requireCampaignWriter } from '@/lib/auth/campaign'
 
 function admin() {
   return createClient(
@@ -9,20 +9,6 @@ function admin() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { persistSession: false, autoRefreshToken: false } },
   )
-}
-
-async function authorize(id: string): Promise<NextResponse | null> {
-  const h = await headers()
-  const role = h.get('x-user-role')
-  const userId = h.get('x-user-id')
-
-  if (role === 'owner' || role === 'manager') return null
-  if (role === 'account') {
-    const supabase = admin()
-    const { data } = await supabase.from('campaigns').select('owner_id').eq('id', id).maybeSingle()
-    if (data?.owner_id === userId) return null
-  }
-  return NextResponse.json({ ok: false, error: 'forbidden' }, { status: 403 })
 }
 
 export async function GET(
@@ -86,7 +72,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params
-  const denied = await authorize(id)
+  const denied = await requireCampaignWriter(id)
   if (denied) return denied
 
   let body: PatchBody
@@ -149,7 +135,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params
-  const denied = await authorize(id)
+  const denied = await requireCampaignWriter(id)
   if (denied) return denied
 
   const supabase = admin()
