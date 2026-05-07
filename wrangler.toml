@@ -1,5 +1,7 @@
 name = "influenceroom"
-main = ".open-next/worker.js"
+# worker-entry.mjs wraps .open-next/worker.js and adds a scheduled() handler
+# so cron triggers can drive /api/cron/process-queue. fetch is delegated 1:1.
+main = "worker-entry.mjs"
 compatibility_date = "2025-09-23"
 compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]
 
@@ -7,9 +9,10 @@ compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]
 directory = ".open-next/assets"
 binding = "ASSETS"
 
-# [triggers] block removed — deferred to Sprint 6 when email reminders +
-# queue processor go live. At that point either upgrade to Workers Paid
-# ($5/mo for 250 cron triggers) or audit existing account crons for free slots.
-# Original config:
-#   [triggers]
-#   crons = ["0 * * * *", "*/5 * * * *"]
+[triggers]
+# Drains notifications.status='queued' every 5 min via processQueueBatch({limit:50}).
+# Auto-flush on /api/admin/broadcast still handles broadcasts instantly via
+# ctx.waitUntil; this cron catches the other 5 notification types
+# (task_assigned, task_status_changed, deadline_reminder, daily_digest,
+# campaign_started) which enqueue without an explicit flush call.
+crons = ["*/5 * * * *"]

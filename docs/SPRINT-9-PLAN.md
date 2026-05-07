@@ -33,7 +33,7 @@
 
 ## Pending Stefan-side
 
-- Upgrade Workers Paid $5/mo (pentru Faza 6)
+- ~~Upgrade Workers Paid $5/mo (pentru Faza 6)~~ ✅ DONE; cron `*/5 * * * *` LIVE
 - Browser test push notifications
 - Schimbat PIN Stefan din 1234 (/profile → Schimbă PIN)
 - Rotire CLOUDFLARE_API_TOKEN

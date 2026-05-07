@@ -40,36 +40,32 @@ both have owner-level access; either can manage the team.
 The notifications table is a queue: every email-producing action (task assigned,
 status changed, deadline reminder, daily digest, campaign started, broadcast)
 inserts a row with `status='queued'`. Actual SMTP delivery via Resend happens in
-`lib/email/queue-worker.ts → processQueueBatch()`. Two paths invoke it:
+`lib/email/queue-worker.ts → processQueueBatch()`. Two paths invoke it, both
+LIVE:
 
-1. **Cron** (long-term path, currently disabled — see Workers Paid item below).
-   `/api/cron/process-queue` drains FIFO up to 50 rows per tick. Authenticated
-   via `x-cron-secret` header.
-2. **Auto-flush** (Phase 6 follow-up, in beta). `/api/admin/broadcast` collects
-   the IDs it just enqueued and calls `processQueueBatch({notification_ids})`
-   inside `ctx.waitUntil(...)` from `getCloudflareContext()`. Response returns
-   to the UI immediately; emails land 1–3s later. **Only broadcasts get this** —
-   the others (task_assigned, task_status_changed, deadline_reminder,
-   daily_digest, campaign_started) still depend on cron.
+1. **Cron** — `*/5 * * * *` (Workers Paid). The cron fires `scheduled()` on the
+   Worker; `worker-entry.mjs` wraps the OpenNext-built worker and adds a
+   scheduled handler that calls `/api/cron/process-queue` internally with the
+   `x-cron-secret` header. Drains FIFO up to 50 rows per tick.
+2. **Auto-flush** — `/api/admin/broadcast` collects the IDs it just enqueued and
+   calls `processQueueBatch({notification_ids})` inside `ctx.waitUntil(...)` from
+   `getCloudflareContext()`. Response returns to the UI immediately; emails land
+   ~200ms later. Only broadcasts get this — broadcasts must feel instant; the
+   other 5 types are fine with the 5-min cron lag.
 
-**Beta workaround for the cron-dependent types**: owner can manually trigger a
-flush via `/admin/notifications` → "Run worker now" (prompts for CRON_SECRET).
-Until cron is restored, those rows sit in `status='queued'` after their
-triggering action until someone clicks the button.
+`/admin/notifications` → "Run worker now" still exists as a manual override
+(prompts for CRON_SECRET) — useful if cron is paused or you want to flush
+on demand.
 
 ## Pending pre-public-launch (Stefan-controlled, not blocking beta)
 - **Resend account + verified sender domain** — DONE. `notify@influenceroom.ro`
   is verified in Resend (region eu-west-1). Worker has `RESEND_API_KEY`,
-  `EMAIL_SENDER`, `EMAIL_REPLY_TO` set as secrets. Broadcasts deliver instantly
-  via auto-flush (see "Email delivery model" above).
-- **Workers Paid plan upgrade ($5/mo)** for cron auto-trigger. Until then,
-  `[triggers]` block is removed from `wrangler.toml`. Workers Free has a 5-cron
-  account-wide limit and the existing Sold Out Media workers already use the
-  slots. Auto-flush covers broadcasts; the other 5 notification types need cron
-  or a manual `/admin/notifications` → "Run worker now" click in the meantime.
-- **Re-enable cron once upgraded:** re-add `[triggers]` block to `wrangler.toml`
-  (commit `b99d98c` removed it with a placeholder comment showing the original
-  config) and push.
+  `EMAIL_SENDER`, `EMAIL_REPLY_TO` set as secrets.
+- **Workers Paid plan + cron** — DONE. Plan upgraded; `[triggers]` restored in
+  `wrangler.toml` with `crons = ["*/5 * * * *"]`. Worker entry is now
+  `worker-entry.mjs` (wraps `.open-next/worker.js` and adds the scheduled
+  handler — OpenNext only exports `fetch`). Account currently uses 6 of 30
+  cron slots.
 
 ## Known limitations (deferred to Phase 2 / future sprints)
 - **Custom domain not configured** — using default `*.workers.dev` URL.
