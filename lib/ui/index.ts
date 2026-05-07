@@ -1,0 +1,15 @@
+// Barrel re-export for the primitive component library. Import as:
+//   import { Button, Card, Input, PageHeader } from '@/lib/ui'
+
+export { cn } from './cn'
+export { tokens } from './tokens'
+export { Button } from './button'
+export { Field, Input, Textarea, Select } from './field'
+export { Card, CardHeader, CardTitle, CardBody, CardFooter } from './card'
+export { Badge } from './badge'
+export { Avatar } from './avatar'
+export { PageHeader } from './page-header'
+export { EmptyState } from './empty-state'
+export { Skeleton, SkeletonText, SkeletonCard } from './skeleton'
+export { Dialog } from './dialog'
+export { ToastProvider, useToast } from './toast'

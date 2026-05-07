@@ -2,24 +2,51 @@
 
 :root {
   color-scheme: light;
-  --background: #ffffff;
-  --foreground: #171717;
 }
 
+/* Tailwind 4 @theme — the brand-* utility classes derive from these. The
+ * neutral-* / stone-* utilities come from Tailwind's default palette. */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
+  --font-display: var(--font-fraunces);
   --font-mono: var(--font-geist-mono);
+
+  --color-brand-50: #FFF7ED;
+  --color-brand-100: #FFEDD5;
+  --color-brand-200: #FED7AA;
+  --color-brand-300: #FDBA74;
+  --color-brand-400: #FB923C;
+  --color-brand-500: #F97316;
+  --color-brand-600: #EA580C;
+  --color-brand-700: #C2410C;
+  --color-brand-800: #9A3412;
+  --color-brand-900: #7C2D12;
+}
+
+/* Base typography. Geist Sans is the body face (loaded via next/font); the
+ * stale Arial/Helvetica fallback that used to live here was overriding it. */
+html, body {
+  font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: #FAFAF9; /* stone-50 */
+  color: #1C1917; /* stone-900 */
 }
 
-/* Force readable contrast on form controls regardless of system color scheme */
+/* Editorial display face. Apply via .font-display utility or directly to
+ * heading components. Fraunces is variable; use opsz/wght for refinement. */
+.font-display {
+  font-family: var(--font-display), Georgia, 'Times New Roman', serif;
+  font-feature-settings: 'ss01' on;
+  letter-spacing: -0.018em;
+}
+
+/* Form-control contrast (kept from prior fix — system dark mode used to
+ * wash out form text). */
 input[type="text"],
 input[type="email"],
 input[type="password"],
@@ -30,14 +57,22 @@ input[type="url"],
 input[type="tel"],
 textarea,
 select {
-  color: #0f172a; /* slate-900 */
+  color: #0f172a;
   background-color: #ffffff;
 }
 
 input::placeholder,
 textarea::placeholder {
-  color: #94a3b8; /* slate-400 — visible but distinct from typed text */
-  opacity: 1; /* override Firefox default 0.54 */
+  color: #94a3b8;
+  opacity: 1;
+}
+
+/* Safe-area handling for iOS PWA standalone — avoids notch/home-bar clipping. */
+.pwa-safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+.pwa-safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 @keyframes shake {
@@ -47,7 +82,14 @@ textarea::placeholder {
   60% { transform: translateX(-6px); }
   80% { transform: translateX(6px); }
 }
-
 .animate-shake {
   animation: shake 400ms ease-in-out;
+}
+
+@keyframes pulse-subtle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+.animate-pulse-subtle {
+  animation: pulse-subtle 1.6s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
