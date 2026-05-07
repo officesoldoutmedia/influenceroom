@@ -1,12 +1,12 @@
-# Influencer Room — Ghid de utilizare
+# Influence Room — Ghid de utilizare
 
 **Aplicația live:** [https://influenceroom.office-2e5.workers.dev](https://influenceroom.office-2e5.workers.dev)
 
 ---
 
-## Bun venit la Influencer Room
+## Bun venit la Influence Room
 
-Influencer Room e tool-ul intern al agenției pentru gestionarea brand-urilor, influencerilor, campaniilor și task-urilor de zi cu zi. Înlocuiește spreadsheet-urile și e-mail-urile dezordonate cu un singur loc unde toată echipa vede aceleași date și aceleași deadline-uri.
+Influence Room e tool-ul intern al agenției pentru gestionarea brand-urilor, influencerilor, campaniilor și task-urilor de zi cu zi. Înlocuiește spreadsheet-urile și e-mail-urile dezordonate cu un singur loc unde toată echipa vede aceleași date și aceleași deadline-uri.
 
 ---
 

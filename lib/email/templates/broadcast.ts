@@ -21,7 +21,7 @@ export function broadcast(p: BroadcastParams) {
     <p>Salut <strong>${esc(p.recipientName)}</strong>,</p>
     ${paragraphs}
     <p style="margin-top:18px;color:#78716c;font-size:12px;">
-      — ${esc(p.senderName)}, Influencer Room
+      — ${esc(p.senderName)}, Influence Room
     </p>
   `)
 
@@ -29,7 +29,7 @@ export function broadcast(p: BroadcastParams) {
 
 ${p.body}
 
-— ${p.senderName}, Influencer Room
+— ${p.senderName}, Influence Room
 `
 
   return { subject: p.subject, html, text }

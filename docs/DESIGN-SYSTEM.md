@@ -1,4 +1,4 @@
-# Design System — Influencer Room
+# Design System — Influence Room
 
 A workshop-editorial direction for an internal SaaS used daily by a 7-person
 agency. Restrained, opinionated, *agency-adjacent* — not corporate, not

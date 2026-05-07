@@ -1,4 +1,4 @@
-// Influencer Room — vanilla service worker.
+// Influence Room — vanilla service worker.
 // Strategy:
 //   /api/*               → network-only, never cached (always fresh data)
 //   navigation requests  → network-first, fallback to /offline.html on failure
@@ -127,14 +127,14 @@ self.addEventListener('fetch', (event) => {
 })
 
 self.addEventListener('push', (event) => {
-  let data = { title: 'Influencer Room', body: '', url: '/', tag: 'broadcast' }
+  let data = { title: 'Influence Room', body: '', url: '/', tag: 'broadcast' }
   try {
     if (event.data) data = { ...data, ...event.data.json() }
   } catch {
     if (event.data) data.body = event.data.text()
   }
   event.waitUntil(
-    self.registration.showNotification(data.title || 'Influencer Room', {
+    self.registration.showNotification(data.title || 'Influence Room', {
       body: data.body || '',
       icon: '/icons/icon-192.png',
       badge: '/icons/icon-192.png',

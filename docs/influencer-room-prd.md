@@ -1,4 +1,4 @@
-# Influencer Room — Internal Operations App
+# Influence Room — Internal Operations App
 
 > Internal tool for an influencer marketing & artist management agency.
 > Pattern modelled on Sold Out Media's Production Hub (Next.js + Supabase + PIN auth).
@@ -7,7 +7,7 @@
 
 ## 1. Overview
 
-**Agency:** Influencer Room
+**Agency:** Influence Room
 **Type:** Internal-only (not customer-facing)
 **Users:** ~3–10 team members (owner, managers, account managers, interns)
 **Hosting:** Cloudflare Pages (default `*.pages.dev` URL — no custom domain in v1)
@@ -346,7 +346,7 @@ Service role key (`SUPABASE_SERVICE_ROLE_KEY`) used only by API server-side — 
 - **Provider:** Resend
 - **From:** `notify@<DOMAIN>` (TBD — set via `EMAIL_SENDER` env var)
 - **Reply-To:** `EMAIL_REPLY_TO` env var (probably the founder's email)
-- **From name:** "Influencer Room"
+- **From name:** "Influence Room"
 
 ### Templates (React Email or simple HTML)
 1. **`task-assigned`**
@@ -550,7 +550,7 @@ Deferred from MVP:
 ## 13. Open Items Before Kickoff
 
 - [ ] Email sender domain (Stefan will confirm later)
-- [ ] Logo / brand palette / fonts (Influencer Room visual identity)
+- [ ] Logo / brand palette / fonts (Influence Room visual identity)
 - [ ] Initial team list (names + emails + roles)
 - [ ] Initial brand list (top 5 to import as seed)
 - [ ] Initial influencer DB (CSV import or manual)

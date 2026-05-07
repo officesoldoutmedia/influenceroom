@@ -40,14 +40,14 @@ export function Nav({ name, role }: { name: string; role: NavRole }) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-3">
           <Link
             href="/"
-            aria-label="Influencer Room — către Dashboard"
+            aria-label="Influence Room — către Dashboard"
             className="flex items-center -mx-1 px-1 py-1 rounded-md hover:bg-stone-100 transition-colors"
             onClick={() => setOpen(false)}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/logo-wordmark.svg"
-              alt="Influencer Room"
+              alt="Influence Room"
               width={158}
               height={13}
               className="h-3.5 sm:h-[14px] w-auto select-none"

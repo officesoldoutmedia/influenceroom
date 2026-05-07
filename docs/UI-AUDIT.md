@@ -29,7 +29,7 @@ Code-driven audit (no live screenshots provided). Severity:
 - **P1** Role labels rendered raw lowercase (`owner`, `manager`, `account`, `intern`) — no localization, no capitalization.
 - **P1** PIN modal (`pin-modal.tsx`) — no auto-focus on first PIN digit input on open; user has to tap.
 - **P2** Avatar fallback uses `bg-indigo-50 text-indigo-700` — same pattern repeated across 8+ files (`influencers-ui`, `detail-ui`, `profile-form`, `nav`, etc.). Should be one `<Avatar>` component.
-- **P2** Page has no header/branding above the grid — just "Influencer Room" + "Selectează contul" centered. No logo/logomark.
+- **P2** Page has no header/branding above the grid — just "Influence Room" + "Selectează contul" centered. No logo/logomark.
 
 ## / (dashboard)
 

@@ -22,7 +22,7 @@ export function layout(content: string): string {
       <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width:600px;background:#ffffff;border:1px solid #e7e5e4;border-radius:12px;overflow:hidden;">
         <tr>
           <td style="padding:18px 24px;border-bottom:1px solid #f5f5f4;">
-            <span style="font-size:14px;font-weight:600;color:#1c1917;letter-spacing:-0.01em;">Influencer Room</span>
+            <span style="font-size:14px;font-weight:600;color:#1c1917;letter-spacing:-0.01em;">Influence Room</span>
           </td>
         </tr>
         <tr>
@@ -32,7 +32,7 @@ export function layout(content: string): string {
         </tr>
         <tr>
           <td style="padding:14px 24px;border-top:1px solid #f5f5f4;font-size:11px;color:#a8a29e;line-height:1.5;">
-            Acest email vine de la Influencer Room. Te poți dezabona din Settings.
+            Acest email vine de la Influence Room. Te poți dezabona din Settings.
           </td>
         </tr>
       </table>

@@ -1,4 +1,4 @@
-# Influencer Room
+# Influence Room
 
 Internal operations app for influencer marketing & artist management.
 

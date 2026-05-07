@@ -23,7 +23,7 @@ export async function sendEmail(args: SendArgs): Promise<SendResult> {
   const resend = new Resend(apiKey)
 
   const result = await resend.emails.send({
-    from: `Influencer Room <${sender}>`,
+    from: `Influence Room <${sender}>`,
     to: [args.to],
     subject: args.subject,
     html: args.html,

@@ -23,13 +23,13 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: "Influencer Room",
-  description: "Internal operations app for Influencer Room agency",
+  title: "Influence Room",
+  description: "Internal operations app for Influence Room agency",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Influencer Room",
+    title: "Influence Room",
   },
   icons: {
     icon: "/favicon.ico",

@@ -1,4 +1,4 @@
-// Design tokens for Influencer Room.
+// Design tokens for Influence Room.
 // See docs/DESIGN-SYSTEM.md for the rationale.
 //
 // These are TypeScript constants; for Tailwind 4 the same values are mirrored

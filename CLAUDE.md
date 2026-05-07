@@ -1,7 +1,7 @@
-# Influencer Room — Internal Operations App
+# Influence Room — Internal Operations App
 
 Internal-only app for an influencer marketing & artist management agency
-(Stefan's friend, agency name "Influencer Room").
+(Stefan's friend, agency name "Influence Room").
 
 ## Read first
 - **Single source of truth:** `docs/influencer-room-prd.md` (read top-to-bottom
@@ -16,7 +16,7 @@ Internal-only app for an influencer marketing & artist management agency
 - **Live:** https://influenceroom.office-2e5.workers.dev
 
 ## Sprint status
-**All 7 sprints complete. Production-ready, in beta testing with Influencer Room team.**
+**All 7 sprints complete. Production-ready, in beta testing with Influence Room team.**
 
 Sprint 1 — auth + team CRUD · Sprint 2 — brands + influencers · Sprint 3 —
 campaigns + tasks + roster · Sprint 4 (folded into 3) — task board · Sprint 5

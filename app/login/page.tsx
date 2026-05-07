@@ -36,7 +36,7 @@ export default async function LoginPage({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/logo-wordmark.svg"
-            alt="Influencer Room"
+            alt="Influence Room"
             className="mx-auto h-5 sm:h-6 w-auto mb-4"
           />
           <p className="text-stone-600 text-[15px]">Selectează contul tău pentru a continua.</p>

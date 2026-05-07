@@ -36,7 +36,7 @@ function mockRenderArgs(template: TemplateName, recipientName: string): RenderAr
           taskTitle: '[Sample] Send pitch',
           campaignName: '[Sample] Q4 Brand Boost',
           dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
-          assignedByName: 'Influencer Room',
+          assignedByName: 'Influence Room',
           taskUrl: APP_URL,
         },
       }
@@ -48,7 +48,7 @@ function mockRenderArgs(template: TemplateName, recipientName: string): RenderAr
           campaignName: '[Sample] Q4 Brand Boost',
           oldStatus: 'todo',
           newStatus: 'done',
-          changedByName: 'Influencer Room',
+          changedByName: 'Influence Room',
           taskUrl: APP_URL,
         },
       }
@@ -86,7 +86,7 @@ function mockRenderArgs(template: TemplateName, recipientName: string): RenderAr
           recipientName,
           campaignName: '[Sample] Q4 Brand Boost',
           brandName: 'ACME',
-          ownerName: 'Influencer Room',
+          ownerName: 'Influence Room',
           startDate: new Date().toISOString().slice(0, 10),
           endDate: null,
           confirmedInfluencersCount: 3,
