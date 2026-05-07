@@ -22,7 +22,19 @@ Sprint 1 — auth + team CRUD · Sprint 2 — brands + influencers · Sprint 3 �
 campaigns + tasks + roster · Sprint 4 (folded into 3) — task board · Sprint 5
 — email infrastructure + queue · Sprint 6 (cron deferred — see "Pending
 pre-public-launch" below) · Sprint 7 — drag-and-drop, real owner seed,
-walkthrough doc, lint cleanup.
+walkthrough doc, lint cleanup. Sprint 8 Phase 1 — input contrast fix
+(removed system dark-mode override that washed out form text), real team
+seeded.
+
+**Team seeded (7 active members, all `@influenceroom.ro` except Stefan):**
+- Stefan Sprianu — owner (maintenance/support)
+- Oana Trascu — owner (real agency owner)
+- Ramona Romanov, Pufeh, Elisabeta Dragulschi, Ofelia Bordeianu, Antonia Lita
+  — all `account` role
+
+All 6 newly-seeded users have **initial PIN `0000`** and should change it on
+first login (owner can reset via `/admin/team` → Reset PIN). Stefan and Oana
+both have owner-level access; either can manage the team.
 
 ## Pending pre-public-launch (Stefan-controlled, not blocking beta)
 - **Resend account + verified sender domain** (e.g. `notify@influenceroom.<tbd>`).
