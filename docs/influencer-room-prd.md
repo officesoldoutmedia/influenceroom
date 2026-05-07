@@ -376,7 +376,15 @@ Service role key (`SUPABASE_SERVICE_ROLE_KEY`) used only by API server-side — 
 
 ## 8. Cron Jobs
 
-Cloudflare Cron Triggers configured in `wrangler.toml`:
+> **Status (Sprint 0):** Cron triggers are **deferred to Sprint 6**. The `[triggers]`
+> block has been removed from `wrangler.toml` because the Cloudflare account is on
+> the Workers Free plan (5 cron triggers per account total) and existing Workers
+> already use the available slots. At Sprint 6 (email reminders + queue worker go
+> live), decide between: upgrade to Workers Paid (\$5/mo for 250 cron triggers),
+> audit existing account crons for free slots, or use an alternative scheduler
+> (GitHub Actions cron, external webhook).
+
+Cloudflare Cron Triggers configured in `wrangler.toml` **(target config — not yet active):**
 
 ```
 0   *  *  *  *    →  /api/cron/daily-reminders   (hourly; handler short-circuits unless local hour == 9)
@@ -569,3 +577,4 @@ When starting the build:
 *Document version: v1.0 — drafted by Claude for Stefan, 7 May 2026.*
 *Revision: §8 cron schedule replaced with hourly + handler-side gate (DST-safe) — 7 May 2026.*
 *Revision: §2 Next.js 14 → Next.js 16; adapter is `@opennextjs/cloudflare` deployed as a Cloudflare Worker (not Pages) — 7 May 2026.*
+*Revision: §8 cron triggers deferred to Sprint 6 (Workers Free plan 5-cron limit hit during initial deploy) — 7 May 2026.*

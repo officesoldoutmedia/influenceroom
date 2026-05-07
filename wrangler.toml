@@ -7,5 +7,9 @@ compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]
 directory = ".open-next/assets"
 binding = "ASSETS"
 
-[triggers]
-crons = ["0 * * * *", "*/5 * * * *"]
+# [triggers] block removed — deferred to Sprint 6 when email reminders +
+# queue processor go live. At that point either upgrade to Workers Paid
+# ($5/mo for 250 cron triggers) or audit existing account crons for free slots.
+# Original config:
+#   [triggers]
+#   crons = ["0 * * * *", "*/5 * * * *"]
