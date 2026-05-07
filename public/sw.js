@@ -7,7 +7,7 @@
 // Bump CACHE_VERSION when shell URLs or strategies change so the activate
 // handler can purge stale caches.
 
-const CACHE_VERSION = 'ir-v1'
+const CACHE_VERSION = 'ir-v2'
 const CACHE_NAME = `ir-shell-${CACHE_VERSION}`
 const SHELL_URLS = [
   '/',
@@ -126,11 +126,45 @@ self.addEventListener('fetch', (event) => {
   // Anything else (Next dynamic chunks, RSC payloads, etc.): network-only.
 })
 
-// Push + notificationclick stubs — wired in Sprint 8 Phase 6.
-self.addEventListener('push', () => {
-  // Phase 6 will populate: parse event.data, show notification.
+self.addEventListener('push', (event) => {
+  let data = { title: 'Influencer Room', body: '', url: '/', tag: 'broadcast' }
+  try {
+    if (event.data) data = { ...data, ...event.data.json() }
+  } catch {
+    if (event.data) data.body = event.data.text()
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'Influencer Room', {
+      body: data.body || '',
+      icon: '/icons/icon-192.png',
+      badge: '/icons/icon-192.png',
+      data: { url: data.url || '/' },
+      tag: data.tag || 'broadcast',
+    }),
+  )
 })
 
-self.addEventListener('notificationclick', () => {
-  // Phase 6 will populate: open / focus the matching client window.
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+  const url = (event.notification.data && event.notification.data.url) || '/'
+  event.waitUntil(
+    (async () => {
+      const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+      for (const w of wins) {
+        try {
+          const wUrl = new URL(w.url)
+          if (wUrl.origin === self.location.origin) {
+            await w.focus()
+            if ('navigate' in w && wUrl.pathname !== url) {
+              await w.navigate(url)
+            }
+            return
+          }
+        } catch {
+          // ignore parse errors
+        }
+      }
+      await self.clients.openWindow(url)
+    })(),
+  )
 })

@@ -3,6 +3,7 @@ import { taskStatusChanged, type TaskStatusChangedParams } from './templates/tas
 import { deadlineReminder, type DeadlineReminderParams } from './templates/deadline-reminder'
 import { dailyDigest, type DailyDigestParams } from './templates/daily-digest'
 import { campaignStarted, type CampaignStartedParams } from './templates/campaign-started'
+import { broadcast, type BroadcastParams } from './templates/broadcast'
 
 export type EmailType =
   | 'task_assigned'
@@ -10,6 +11,7 @@ export type EmailType =
   | 'deadline_reminder'
   | 'daily_digest'
   | 'campaign_started'
+  | 'broadcast'
 
 export type RenderArgs =
   | { type: 'task_assigned'; params: TaskAssignedParams }
@@ -17,6 +19,7 @@ export type RenderArgs =
   | { type: 'deadline_reminder'; params: DeadlineReminderParams }
   | { type: 'daily_digest'; params: DailyDigestParams }
   | { type: 'campaign_started'; params: CampaignStartedParams }
+  | { type: 'broadcast'; params: BroadcastParams }
 
 export type RenderedEmail = { subject: string; html: string; text: string }
 
@@ -32,5 +35,7 @@ export function renderEmail(args: RenderArgs): RenderedEmail {
       return dailyDigest(args.params)
     case 'campaign_started':
       return campaignStarted(args.params)
+    case 'broadcast':
+      return broadcast(args.params)
   }
 }

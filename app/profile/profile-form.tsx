@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 
 export type Role = 'owner' | 'manager' | 'account' | 'intern'
@@ -53,7 +53,15 @@ function err(code: string | undefined): string {
   return ERROR_MAP[code ?? 'server_error'] ?? ERROR_MAP.server_error
 }
 
-export function ProfileForm({ initial }: { initial: ProfileData }) {
+export function ProfileForm({
+  initial,
+  vapidPublicKey,
+  deviceCount,
+}: {
+  initial: ProfileData
+  vapidPublicKey: string | null
+  deviceCount: number
+}) {
   const [profile, setProfile] = useState<ProfileData>(initial)
   const [toast, setToast] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null)
 
@@ -81,6 +89,11 @@ export function ProfileForm({ initial }: { initial: ProfileData }) {
       <NotificationsCard
         profile={profile}
         setProfile={setProfile}
+        flash={flash}
+      />
+      <PushCard
+        vapidPublicKey={vapidPublicKey}
+        initialDeviceCount={deviceCount}
         flash={flash}
       />
     </div>
@@ -409,6 +422,153 @@ function Toggle({
       />
     </button>
   )
+}
+
+function PushCard({
+  vapidPublicKey,
+  initialDeviceCount,
+  flash,
+}: {
+  vapidPublicKey: string | null
+  initialDeviceCount: number
+  flash: (k: 'ok' | 'err', m: string) => void
+}) {
+  const [supported, setSupported] = useState<boolean | null>(null)
+  const [permission, setPermission] = useState<NotificationPermission | 'unknown'>('unknown')
+  const [subscribed, setSubscribed] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [deviceCount, setDeviceCount] = useState(initialDeviceCount)
+
+  useEffect(() => {
+    const ok =
+      typeof window !== 'undefined' &&
+      'serviceWorker' in navigator &&
+      'PushManager' in window &&
+      'Notification' in window
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSupported(ok)
+    if (!ok) return
+    setPermission(Notification.permission)
+    navigator.serviceWorker.ready.then((reg) =>
+      reg.pushManager.getSubscription().then((sub) => {
+        setSubscribed(!!sub)
+      }),
+    )
+  }, [])
+
+  async function enable() {
+    if (!vapidPublicKey) {
+      flash('err', 'Push nu este configurat (lipsește VAPID).')
+      return
+    }
+    setBusy(true)
+    try {
+      const perm = await Notification.requestPermission()
+      setPermission(perm)
+      if (perm !== 'granted') {
+        flash('err', 'Permisiunea pentru notificări a fost refuzată.')
+        return
+      }
+      const reg = await navigator.serviceWorker.ready
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey) as BufferSource,
+      })
+      const json = sub.toJSON()
+      const res = await fetch('/api/push/subscribe', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          endpoint: json.endpoint,
+          keys: json.keys,
+          user_agent: navigator.userAgent,
+        }),
+      })
+      const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string }
+      if (res.ok && data.ok) {
+        setSubscribed(true)
+        setDeviceCount((c) => c + 1)
+        flash('ok', 'Notificări activate')
+      } else {
+        flash('err', err(data.error))
+      }
+    } catch (e) {
+      flash('err', String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function disable() {
+    setBusy(true)
+    try {
+      const reg = await navigator.serviceWorker.ready
+      const sub = await reg.pushManager.getSubscription()
+      if (sub) {
+        await fetch('/api/push/unsubscribe', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ endpoint: sub.endpoint }),
+        })
+        await sub.unsubscribe()
+      }
+      setSubscribed(false)
+      setDeviceCount((c) => Math.max(0, c - 1))
+      flash('ok', 'Notificări dezactivate')
+    } catch (e) {
+      flash('err', String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const status = (() => {
+    if (supported === null) return '...'
+    if (!supported) return 'Browser nu suportă'
+    if (permission === 'denied') return 'Refuzate (schimbă din setările browserului)'
+    if (subscribed) return `Activate · ${deviceCount} ${deviceCount === 1 ? 'dispozitiv' : 'dispozitive'}`
+    return 'Dezactivate'
+  })()
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm p-6 space-y-3">
+      <h2 className="text-sm font-semibold text-stone-900 uppercase tracking-wide">
+        Notificări push
+      </h2>
+      <p className="text-sm text-stone-600">{status}</p>
+      {!vapidPublicKey && (
+        <p className="text-xs text-amber-600">
+          Push nu este configurat la nivel de server. Setează VAPID_* în Worker.
+        </p>
+      )}
+      <div className="flex gap-2 pt-1">
+        {supported && permission !== 'denied' && !subscribed && (
+          <button
+            type="button"
+            onClick={enable}
+            disabled={busy || !vapidPublicKey}
+            className={btnPrimary}
+          >
+            {busy ? '...' : 'Activează notificări push'}
+          </button>
+        )}
+        {supported && subscribed && (
+          <button type="button" onClick={disable} disabled={busy} className={btnSecondary}>
+            {busy ? '...' : 'Dezactivează'}
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function urlBase64ToUint8Array(b64: string): Uint8Array {
+  const padding = '='.repeat((4 - (b64.length % 4)) % 4)
+  const base64 = (b64 + padding).replace(/-/g, '+').replace(/_/g, '/')
+  const raw = atob(base64)
+  const bytes = new Uint8Array(raw.length)
+  for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i)
+  return bytes
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {

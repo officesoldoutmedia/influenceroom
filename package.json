@@ -14,6 +14,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@block65/webcrypto-web-push": "^1.0.2",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
@@ -37,6 +38,7 @@
     "sharp": "^0.34.5",
     "tailwindcss": "^4",
     "typescript": "^5",
+    "web-push": "^3.6.7",
     "wrangler": "^4.88.0"
   }
 }
