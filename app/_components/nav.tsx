@@ -9,6 +9,7 @@ export function Nav({ name, role }: { name: string; role: NavRole }) {
   const links: LinkDef[] = [
     { href: '/', label: 'Dashboard' },
     { href: '/brands', label: 'Brands' },
+    { href: '/influencers', label: 'Influencers' },
     { href: '/admin/team', label: 'Team', show: role === 'owner' },
   ]
 
