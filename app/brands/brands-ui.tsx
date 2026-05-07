@@ -71,7 +71,7 @@ export function BrandsUI({ initialBrands, role }: { initialBrands: Brand[]; role
             onClick={() => setShowAdd(true)}
             className="px-4 py-2 rounded-lg bg-brand-700 text-white text-sm hover:bg-brand-800"
           >
-            + Add brand
+            + Adaugă brand
           </button>
         )}
         {showAdd && (
@@ -90,7 +90,7 @@ export function BrandsUI({ initialBrands, role }: { initialBrands: Brand[]; role
             onClick={() => setShowAdd(true)}
             className="px-4 py-2 rounded-lg bg-brand-700 text-white text-sm hover:bg-brand-800"
           >
-            + Add brand
+            + Adaugă brand
           </button>
         </div>
       )}
@@ -309,7 +309,7 @@ function AddModal({ onClose, onCreated }: { onClose: () => void; onCreated: (b: 
 
   return (
     <ModalShell onClose={onClose}>
-      <h2 className="text-lg font-semibold text-stone-900 mb-4">Add brand</h2>
+      <h2 className="text-lg font-semibold text-stone-900 mb-4">Adaugă brand</h2>
       <form onSubmit={submit} className="space-y-3">
         <BrandFields form={form} set={setForm} />
         {error && <p className="text-sm text-rose-600">{error}</p>}

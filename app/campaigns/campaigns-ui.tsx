@@ -9,6 +9,15 @@ import {
   type CampaignWithJoins,
   type TemplateGroupDef,
 } from '@/lib/campaigns/types'
+import { EmptyState, Button } from '@/lib/ui'
+
+const STATUS_LABEL: Record<CampaignStatus, string> = {
+  draft: 'draft',
+  active: 'active',
+  in_review: 'în review',
+  completed: 'finalizat',
+  cancelled: 'anulat',
+}
 
 type Role = 'owner' | 'manager' | 'account' | 'intern'
 
@@ -92,60 +101,98 @@ export function CampaignsUI({
       />
 
       {items.length === 0 ? (
-        <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
-          <p className="text-stone-500 text-sm mb-1">Niciun campaign găsit.</p>
-          {hasFilter(initialFilters) && (
-            <p className="text-stone-400 text-xs">Încearcă să resetezi filtrele.</p>
-          )}
-        </div>
+        <EmptyState
+          title="Nicio campanie găsită"
+          description={
+            hasFilter(initialFilters)
+              ? 'Încearcă să resetezi filtrele.'
+              : 'Crează prima campanie pentru a începe să gestionezi briefuri și deliverabile.'
+          }
+          action={
+            !hasFilter(initialFilters) && canCreate ? (
+              <Button type="button" variant="primary" onClick={() => setShowNew(true)}>
+                + Adaugă campanie
+              </Button>
+            ) : undefined
+          }
+        />
       ) : (
-        <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-stone-50 border-b border-stone-200">
-              <tr className="text-left text-stone-500">
-                <th className="px-4 py-3 font-medium">Name</th>
-                <th className="px-4 py-3 font-medium">Brand</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 font-medium">Start</th>
-                <th className="px-4 py-3 font-medium">End</th>
-                <th className="px-4 py-3 font-medium">Owner</th>
-                <th className="px-4 py-3 font-medium text-right">Deliverables</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-stone-100">
-              {items.map((c) => (
-                <tr key={c.id} className={c.status === 'cancelled' ? 'opacity-60' : ''}>
-                  <td className="px-4 py-3">
-                    <Link href={`/campaigns/${c.id}`} className="font-medium text-stone-900 hover:text-brand-800">
-                      {c.name}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3 text-stone-600">{c.brand?.name ?? '—'}</td>
-                  <td className="px-4 py-3">
-                    <span className={`text-[10px] uppercase tracking-wide font-medium px-2 py-0.5 rounded-full ${STATUS_BADGE[c.status]}`}>
-                      {c.status.replace('_', ' ')}
+        <>
+          {/* Mobile: cards */}
+          <ul className="md:hidden space-y-2">
+            {items.map((c) => (
+              <li key={c.id} className={c.status === 'cancelled' ? 'opacity-60' : ''}>
+                <Link
+                  href={`/campaigns/${c.id}`}
+                  className="block bg-white border border-stone-200 rounded-xl p-4 active:bg-stone-50 transition-colors"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="font-medium text-stone-900 truncate">{c.name}</span>
+                    <span className={`shrink-0 text-[10px] uppercase tracking-wide font-medium px-2 py-0.5 rounded-full ${STATUS_BADGE[c.status]}`}>
+                      {STATUS_LABEL[c.status]}
                     </span>
-                  </td>
-                  <td className="px-4 py-3 text-stone-600">{c.start_date ?? '—'}</td>
-                  <td className="px-4 py-3 text-stone-600">{c.end_date ?? '—'}</td>
-                  <td className="px-4 py-3 text-stone-600">{c.owner?.name ?? '—'}</td>
-                  <td className="px-4 py-3 text-stone-600 text-right">{c.deliverables_count ?? '—'}</td>
+                  </div>
+                  <div className="mt-1.5 flex items-center justify-between text-[12px] text-stone-500 gap-2">
+                    <span className="truncate">{c.brand?.name ?? '—'}</span>
+                    <span className="shrink-0">{c.owner?.name ?? '—'}</span>
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+
+          {/* Desktop: table */}
+          <div className="hidden md:block bg-white border border-stone-200 rounded-xl overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-stone-50 border-b border-stone-200">
+                <tr className="text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-stone-500">
+                  <th className="px-4 py-3">Nume</th>
+                  <th className="px-4 py-3">Brand</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Start</th>
+                  <th className="px-4 py-3">Final</th>
+                  <th className="px-4 py-3">Owner</th>
+                  <th className="px-4 py-3 text-right">Deliverabile</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-stone-100">
+                {items.map((c) => (
+                  <tr
+                    key={c.id}
+                    className={`hover:bg-stone-50 transition-colors ${c.status === 'cancelled' ? 'opacity-60' : ''}`}
+                  >
+                    <td className="px-4 py-3">
+                      <Link href={`/campaigns/${c.id}`} className="font-medium text-stone-900 hover:text-brand-800">
+                        {c.name}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3 text-stone-600">{c.brand?.name ?? '—'}</td>
+                    <td className="px-4 py-3">
+                      <span className={`text-[10px] uppercase tracking-wide font-medium px-2 py-0.5 rounded-full ${STATUS_BADGE[c.status]}`}>
+                        {STATUS_LABEL[c.status]}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-stone-600 tabular-nums">{c.start_date ?? '—'}</td>
+                    <td className="px-4 py-3 text-stone-600 tabular-nums">{c.end_date ?? '—'}</td>
+                    <td className="px-4 py-3 text-stone-600">{c.owner?.name ?? '—'}</td>
+                    <td className="px-4 py-3 text-stone-600 text-right tabular-nums">{c.deliverables_count ?? '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {totalPages > 1 && (
         <div className="flex items-center justify-between mt-4 text-sm">
-          <span className="text-stone-500">
-            {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} of {total}
+          <span className="text-stone-500 tabular-nums">
+            {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} din {total}
           </span>
           <div className="flex gap-2">
-            <button type="button" disabled={page <= 1} onClick={() => pushFilters({ page: page - 1 })} className="px-3 py-1 rounded border border-stone-300 disabled:opacity-40">Prev</button>
-            <span className="px-3 py-1 text-stone-600">{page} / {totalPages}</span>
-            <button type="button" disabled={page >= totalPages} onClick={() => pushFilters({ page: page + 1 })} className="px-3 py-1 rounded border border-stone-300 disabled:opacity-40">Next</button>
+            <button type="button" disabled={page <= 1} onClick={() => pushFilters({ page: page - 1 })} className="px-3 py-1.5 rounded-md border border-stone-300 hover:bg-stone-50 disabled:opacity-40 disabled:hover:bg-transparent text-stone-700">← Anterior</button>
+            <span className="px-3 py-1.5 text-stone-600 tabular-nums">{page} / {totalPages}</span>
+            <button type="button" disabled={page >= totalPages} onClick={() => pushFilters({ page: page + 1 })} className="px-3 py-1.5 rounded-md border border-stone-300 hover:bg-stone-50 disabled:opacity-40 disabled:hover:bg-transparent text-stone-700">Următor →</button>
           </div>
         </div>
       )}
@@ -216,59 +263,85 @@ function FilterBar({
 
   const showReset = useMemo(() => hasFilter(filters), [filters])
 
+  const inputCls =
+    'w-full px-3 py-2.5 border border-stone-300 rounded-md text-sm bg-white focus:outline-none focus:border-brand-700 focus:ring-2 focus:ring-brand-500/20'
+
   return (
-    <div className="bg-white rounded-2xl shadow-sm p-4 mb-4 space-y-3">
-      <div className="flex gap-3 items-center">
+    <div className="bg-white border border-stone-200 rounded-xl shadow-[0_1px_2px_0_rgb(0_0_0_/_0.04)] p-4 mb-4 space-y-4">
+      <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Search by name…"
-          className="flex-1 px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:border-brand-700 focus:ring-2 focus:ring-brand-500/20"
+          placeholder="Caută după nume…"
+          className={`${inputCls} sm:flex-1`}
         />
+        {canCreate && (
+          <button
+            type="button"
+            onClick={onNew}
+            className="h-11 px-4 rounded-md bg-brand-700 text-white text-sm font-medium hover:bg-brand-800 whitespace-nowrap shrink-0"
+          >
+            + Adaugă campanie
+          </button>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         <select
           value={brand}
           onChange={(e) => { setBrand(e.target.value); onApply({ brand: e.target.value || null }) }}
-          className="px-3 py-2 border border-stone-300 rounded-lg text-sm"
+          className={inputCls}
         >
-          <option value="">All brands</option>
+          <option value="">Toate brandurile</option>
           {brands.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
         </select>
         <select
           value={owner}
           onChange={(e) => { setOwner(e.target.value); onApply({ owner: e.target.value || null }) }}
-          className="px-3 py-2 border border-stone-300 rounded-lg text-sm"
+          className={inputCls}
         >
-          <option value="">All owners</option>
+          <option value="">Toți ownerii</option>
           {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
         </select>
-        {canCreate && (
-          <button type="button" onClick={onNew} className="px-4 py-2 rounded-lg bg-brand-700 text-white text-sm hover:bg-brand-800 whitespace-nowrap">
-            + New campaign
-          </button>
-        )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-1.5">
-        <span className="text-xs text-stone-500 mr-1">Status:</span>
-        {CAMPAIGN_STATUSES.map((s) => {
-          const active = statuses.includes(s)
-          return (
-            <button
-              key={s}
-              type="button"
-              onClick={() => toggleStatus(s)}
-              className={`text-xs px-2 py-0.5 rounded-full border ${active ? 'bg-brand-700 text-white border-brand-700' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`}
-            >
-              {s.replace('_', ' ')}
-            </button>
-          )
-        })}
-        {showReset && (
-          <button type="button" onClick={reset} className="text-xs text-stone-500 underline ml-2">
-            Reset filters
-          </button>
-        )}
+      <div>
+        <div className="text-[11px] font-semibold uppercase tracking-[0.06em] text-stone-500 mb-2">
+          Status
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {CAMPAIGN_STATUSES.map((s) => {
+            const active = statuses.includes(s)
+            return (
+              <button
+                key={s}
+                type="button"
+                onClick={() => toggleStatus(s)}
+                aria-pressed={active}
+                className={`min-h-[44px] sm:min-h-[36px] px-3 py-2 sm:py-1.5 rounded-full border text-[13px] font-medium transition-colors ${
+                  active
+                    ? 'bg-brand-700 text-white border-brand-700'
+                    : 'bg-stone-100 text-stone-700 border-stone-200 hover:bg-stone-200'
+                }`}
+              >
+                {STATUS_LABEL[s]}
+              </button>
+            )
+          })}
+        </div>
       </div>
+
+      {showReset && (
+        <div className="pt-1">
+          <button
+            type="button"
+            onClick={reset}
+            className="text-[12px] text-stone-500 hover:text-stone-800 underline underline-offset-2"
+          >
+            Resetează filtrele
+          </button>
+        </div>
+      )}
     </div>
   )
 }

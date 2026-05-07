@@ -58,7 +58,7 @@ export default async function AdminNotificationsPage({
       <Nav name={me?.name ?? ''} role={role} />
       <main className="bg-stone-50 px-4 sm:px-6 py-6 sm:py-10 pwa-safe-bottom">
         <div className="max-w-6xl mx-auto">
-          <h1 className="font-display text-3xl sm:text-4xl font-semibold text-stone-900 leading-[1.05] mb-6 sm:mb-8">Notifications</h1>
+          <h1 className="font-display text-3xl sm:text-4xl font-semibold text-stone-900 leading-[1.05] mb-6 sm:mb-8">Notificări</h1>
           <NotificationsUI
             initialRules={(rules ?? []) as Rule[]}
             initialNotifications={(notifs ?? []) as unknown as NotificationRow[]}

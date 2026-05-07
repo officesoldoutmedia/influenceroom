@@ -12,6 +12,7 @@ import {
   type ManagerSummary,
 } from '@/lib/influencers/types'
 import { formatFollowers } from '@/lib/influencers/format'
+import { Avatar, EmptyState, Button } from '@/lib/ui'
 import {
   emptyForm,
   formToPayload,
@@ -115,14 +116,21 @@ export function InfluencersUI({
       />
 
       {items.length === 0 ? (
-        <div className="bg-white border border-stone-200 rounded-xl py-12 px-6 sm:py-16 text-center">
-          <p className="font-display text-lg text-stone-900 mb-1">Niciun influencer găsit</p>
-          {hasActiveFilter(initialFilters) ? (
-            <p className="text-stone-500 text-sm">Încearcă să resetezi filtrele.</p>
-          ) : (
-            <p className="text-stone-500 text-sm">Adaugă primul influencer pentru a începe.</p>
-          )}
-        </div>
+        <EmptyState
+          title="Niciun influencer găsit"
+          description={
+            hasActiveFilter(initialFilters)
+              ? 'Încearcă să resetezi filtrele.'
+              : 'Adaugă primul influencer pentru a începe să construiești roster-ul.'
+          }
+          action={
+            !hasActiveFilter(initialFilters) && canWrite ? (
+              <Button type="button" variant="primary" onClick={() => setShowAdd(true)}>
+                + Adaugă influencer
+              </Button>
+            ) : undefined
+          }
+        />
       ) : (
         <>
           {/* Mobile: cards */}
@@ -133,9 +141,7 @@ export function InfluencersUI({
                   href={`/influencers/${i.id}`}
                   className="flex items-start gap-3 bg-white border border-stone-200 rounded-xl p-4 active:bg-stone-50 transition-colors"
                 >
-                  <div className="w-10 h-10 shrink-0 rounded-full bg-brand-50 text-brand-800 flex items-center justify-center text-sm font-semibold uppercase">
-                    {i.name[0] ?? '?'}
-                  </div>
+                  <Avatar name={i.name} size="md" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-medium text-stone-900 truncate">{i.name}</span>
@@ -175,7 +181,7 @@ export function InfluencersUI({
                   <th className="px-4 py-3">Handle</th>
                   <th className="px-4 py-3">Tier</th>
                   <th className="px-4 py-3">Manager</th>
-                  <th className="px-4 py-3">Niches</th>
+                  <th className="px-4 py-3">Niche</th>
                   <th className="px-4 py-3 text-right">Followers</th>
                   <th className="px-4 py-3">Status</th>
                 </tr>
@@ -188,9 +194,7 @@ export function InfluencersUI({
                   >
                     <td className="px-4 py-3">
                       <Link href={`/influencers/${i.id}`} className="flex items-center gap-3 hover:text-brand-800">
-                        <div className="w-8 h-8 rounded-full bg-brand-50 text-brand-800 flex items-center justify-center text-xs font-semibold">
-                          {i.name[0]?.toUpperCase() ?? '?'}
-                        </div>
+                        <Avatar name={i.name} size="sm" />
                         <span className="font-medium text-stone-900">{i.name}</span>
                       </Link>
                     </td>
@@ -264,7 +268,7 @@ export function InfluencersUI({
 
       {showAdd && (
         <FormModal
-          title="Add influencer"
+          title="Adaugă influencer"
           initial={emptyForm(role === 'account' ? currentUserId : '')}
           managers={managers}
           onClose={() => setShowAdd(false)}
@@ -356,17 +360,38 @@ function FilterBar({
 
   const hasFilter = useMemo(() => hasActiveFilter(filters), [filters])
 
+  const inputCls =
+    'w-full px-3 py-2.5 border border-stone-300 rounded-md text-sm bg-white focus:outline-none focus:border-brand-700 focus:ring-2 focus:ring-brand-500/20'
+
   return (
-    <div className="bg-white rounded-2xl shadow-sm p-4 mb-4 space-y-3">
-      <div className="flex gap-3 items-center">
+    <div className="bg-white border border-stone-200 rounded-xl shadow-[0_1px_2px_0_rgb(0_0_0_/_0.04)] p-4 mb-4 space-y-4">
+      {/* Row 1: search + add. Search expands; add stays compact on the right. */}
+      <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Search by name…"
-          className="flex-1 px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:border-brand-700 focus:ring-2 focus:ring-brand-500/20"
+          placeholder="Caută după nume…"
+          className={`${inputCls} sm:flex-1`}
         />
-        <select value={platform} onChange={(e) => setPlat(e.target.value)} className="px-3 py-2 border border-stone-300 rounded-lg text-sm">
-          <option value="">Any platform</option>
+        {canWrite && (
+          <button
+            type="button"
+            onClick={onAdd}
+            className="h-11 px-4 rounded-md bg-brand-700 text-white text-sm font-medium hover:bg-brand-800 whitespace-nowrap shrink-0"
+          >
+            + Adaugă influencer
+          </button>
+        )}
+      </div>
+
+      {/* Row 2: dropdowns. Stack vertically below sm; flex-wrap inline above. */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+        <select
+          value={platform}
+          onChange={(e) => setPlat(e.target.value)}
+          className={inputCls}
+        >
+          <option value="">Orice platformă</option>
           {PLATFORMS.map((p) => (
             <option key={p} value={p}>{p}</option>
           ))}
@@ -377,10 +402,10 @@ function FilterBar({
             setManager(e.target.value)
             onApply({ manager: e.target.value || null })
           }}
-          className="px-3 py-2 border border-stone-300 rounded-lg text-sm"
+          className={inputCls}
         >
-          <option value="">All managers</option>
-          <option value="unassigned">Unassigned</option>
+          <option value="">Toți managerii</option>
+          <option value="unassigned">Neasignat</option>
           {managers.map((m) => (
             <option key={m.id} value={m.id}>{m.name}</option>
           ))}
@@ -392,7 +417,7 @@ function FilterBar({
           onChange={(e) => setFmin(e.target.value)}
           onBlur={commitRange}
           placeholder="Followers min"
-          className="w-32 px-3 py-2 border border-stone-300 rounded-lg text-sm"
+          className={inputCls}
         />
         <input
           type="number"
@@ -400,54 +425,76 @@ function FilterBar({
           value={fmax}
           onChange={(e) => setFmax(e.target.value)}
           onBlur={commitRange}
-          placeholder="max"
-          className="w-32 px-3 py-2 border border-stone-300 rounded-lg text-sm"
+          placeholder="Followers max"
+          className={inputCls}
         />
-        {canWrite && (
-          <button type="button" onClick={onAdd} className="px-4 py-2 rounded-lg bg-brand-700 text-white text-sm hover:bg-brand-800 whitespace-nowrap">
-            + Add
-          </button>
-        )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-1.5">
-        <span className="text-xs text-stone-500 mr-1">Tier:</span>
-        {TIERS.map((t) => {
-          const active = tiers.includes(t)
-          return (
-            <button
-              key={t}
-              type="button"
-              onClick={() => toggleTier(t)}
-              className={`text-xs px-2 py-0.5 rounded-full border ${active ? 'bg-brand-700 text-white border-brand-700' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`}
-            >
-              {t}
-            </button>
-          )
-        })}
+      {/* Tier chips */}
+      <div>
+        <div className="text-[11px] font-semibold uppercase tracking-[0.06em] text-stone-500 mb-2">
+          Tier
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {TIERS.map((t) => {
+            const active = tiers.includes(t)
+            return (
+              <button
+                key={t}
+                type="button"
+                onClick={() => toggleTier(t)}
+                aria-pressed={active}
+                className={`min-h-[44px] sm:min-h-[36px] px-3 py-2 sm:py-1.5 rounded-full border text-[13px] font-medium transition-colors ${
+                  active
+                    ? 'bg-brand-700 text-white border-brand-700'
+                    : 'bg-stone-100 text-stone-700 border-stone-200 hover:bg-stone-200'
+                }`}
+              >
+                {t}
+              </button>
+            )
+          })}
+        </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-1.5">
-        <span className="text-xs text-stone-500 mr-1">Niches:</span>
-        {PRESET_TAGS.map((t) => {
-          const active = tags.includes(t)
-          return (
-            <button
-              key={t}
-              type="button"
-              onClick={() => toggleTag(t)}
-              className={`text-xs px-2 py-0.5 rounded-full border ${active ? 'bg-brand-700 text-white border-brand-700' : 'border-stone-300 text-stone-600 hover:border-stone-500'}`}
-            >
-              {t}
-            </button>
-          )
-        })}
-        {hasFilter && (
-          <button type="button" onClick={reset} className="text-xs text-stone-500 underline ml-2">
-            Reset filters
-          </button>
-        )}
+      {/* Niche chips */}
+      <div>
+        <div className="text-[11px] font-semibold uppercase tracking-[0.06em] text-stone-500 mb-2">
+          Niche
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {PRESET_TAGS.map((t) => {
+            const active = tags.includes(t)
+            return (
+              <button
+                key={t}
+                type="button"
+                onClick={() => toggleTag(t)}
+                aria-pressed={active}
+                className={`min-h-[44px] sm:min-h-[36px] px-3 py-2 sm:py-1.5 rounded-full border text-[13px] font-medium transition-colors ${
+                  active
+                    ? 'bg-brand-700 text-white border-brand-700'
+                    : 'bg-stone-100 text-stone-700 border-stone-200 hover:bg-stone-200'
+                }`}
+              >
+                {t}
+              </button>
+            )
+          })}
+        </div>
       </div>
+
+      {hasFilter && (
+        <div className="pt-1">
+          <button
+            type="button"
+            onClick={reset}
+            className="text-[12px] text-stone-500 hover:text-stone-800 underline underline-offset-2"
+          >
+            Resetează filtrele
+          </button>
+        </div>
+      )}
     </div>
   )
 }

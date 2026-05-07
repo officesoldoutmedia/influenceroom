@@ -34,7 +34,7 @@ export default async function BrandsPage() {
       <Nav name={me?.name ?? ''} role={role} />
       <main className="bg-stone-50 px-4 sm:px-6 py-6 sm:py-10 pwa-safe-bottom">
         <div className="max-w-5xl mx-auto">
-          <h1 className="font-display text-3xl sm:text-4xl font-semibold text-stone-900 leading-[1.05] mb-6 sm:mb-8">Brands</h1>
+          <h1 className="font-display text-3xl sm:text-4xl font-semibold text-stone-900 leading-[1.05] mb-6 sm:mb-8">Branduri</h1>
           <BrandsUI initialBrands={(brands ?? []) as Brand[]} role={role} />
         </div>
       </main>

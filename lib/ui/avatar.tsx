@@ -10,6 +10,28 @@ const SIZE: Record<Size, { box: string; text: string }> = {
   xl: { box: 'w-16 h-16', text: 'text-xl' },
 }
 
+// Curated 8-tint palette. Each entry pairs a 100-tier surface with a 700/800-tier
+// glyph color so contrast stays AA on stone-50 backgrounds — no pale outliers.
+// Hash on name to pick deterministically.
+const PALETTE = [
+  'bg-orange-100 text-orange-800',     // brand-adjacent (matches burnt amber identity)
+  'bg-amber-100 text-amber-800',
+  'bg-rose-100 text-rose-800',
+  'bg-emerald-100 text-emerald-800',
+  'bg-teal-100 text-teal-800',
+  'bg-sky-100 text-sky-800',
+  'bg-violet-100 text-violet-800',
+  'bg-stone-200 text-stone-800',
+] as const
+
+function hashIndex(name: string, mod: number): number {
+  let h = 0
+  for (let i = 0; i < name.length; i++) {
+    h = (h * 31 + name.charCodeAt(i)) >>> 0
+  }
+  return h % mod
+}
+
 function initials(name: string): string {
   return (
     name
@@ -43,13 +65,15 @@ export function Avatar({
       />
     )
   }
+  const tone = PALETTE[hashIndex(name, PALETTE.length)]
   return (
     <div
       aria-label={name}
       className={cn(
         s.box,
         s.text,
-        'rounded-full bg-brand-50 text-brand-800 flex items-center justify-center font-semibold uppercase tracking-tight',
+        tone,
+        'rounded-full flex items-center justify-center font-semibold uppercase tracking-tight shrink-0',
         className,
       )}
     >

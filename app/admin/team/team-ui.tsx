@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { Avatar } from '@/lib/ui'
 
 export type Role = 'owner' | 'manager' | 'account' | 'intern'
 
@@ -23,15 +24,6 @@ const ROLE_BADGE: Record<Role, string> = {
   manager: 'bg-blue-100 text-blue-700',
   account: 'bg-cyan-100 text-cyan-700',
   intern: 'bg-stone-200 text-stone-700',
-}
-
-function initials(name: string): string {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((s) => s[0]?.toUpperCase() ?? '')
-    .join('')
 }
 
 type Props = {
@@ -78,49 +70,98 @@ export function TeamUI({ initialMembers, currentUserId }: Props) {
           onClick={() => setShowAdd(true)}
           className="px-4 py-2 rounded-lg bg-brand-700 text-white text-sm hover:bg-brand-800"
         >
-          + Add member
+          + Adaugă membru
         </button>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+      {/* Mobile: cards */}
+      <ul className="md:hidden space-y-2">
+        {members.map((m) => (
+          <li key={m.id} className={m.active ? '' : 'opacity-50'}>
+            <div className="bg-white border border-stone-200 rounded-xl p-4">
+              <div className="flex items-start gap-3">
+                <Avatar name={m.name} src={m.avatar_url} size="md" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-medium text-stone-900 truncate">{m.name}</span>
+                    {m.id === currentUserId && (
+                      <span className="text-[10px] uppercase tracking-[0.06em] text-stone-400">tu</span>
+                    )}
+                  </div>
+                  <div className="text-[12px] text-stone-500 truncate mt-0.5">{m.email}</div>
+                  <div className="mt-2 flex items-center gap-2 flex-wrap">
+                    <span className={`text-[10px] uppercase tracking-[0.06em] font-medium px-2 py-0.5 rounded-full ${ROLE_BADGE[m.role]}`}>
+                      {m.role}
+                    </span>
+                    <span className={`text-[11px] font-medium ${m.active ? 'text-emerald-700' : 'text-stone-400'}`}>
+                      {m.active ? '● activ' : '○ inactiv'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-3 pt-3 border-t border-stone-100 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditing(m)}
+                  className="px-3 py-2 rounded-md text-[13px] bg-stone-100 hover:bg-stone-200 text-stone-700"
+                >
+                  Editează
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setResetting(m)}
+                  className="px-3 py-2 rounded-md text-[13px] bg-stone-100 hover:bg-stone-200 text-stone-700"
+                >
+                  Resetează PIN
+                </button>
+                <button
+                  type="button"
+                  onClick={() => toggleActive(m)}
+                  disabled={m.id === currentUserId}
+                  className="px-3 py-2 rounded-md text-[13px] bg-stone-100 hover:bg-stone-200 text-stone-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                  title={m.id === currentUserId ? 'Nu te poți dezactiva pe tine' : ''}
+                >
+                  {m.active ? 'Dezactivează' : 'Activează'}
+                </button>
+              </div>
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      {/* Desktop: table */}
+      <div className="hidden md:block bg-white border border-stone-200 rounded-xl overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-stone-50 border-b border-stone-200">
-            <tr className="text-left text-stone-500">
-              <th className="px-4 py-3 font-medium">Name</th>
-              <th className="px-4 py-3 font-medium">Email</th>
-              <th className="px-4 py-3 font-medium">Role</th>
-              <th className="px-4 py-3 font-medium">Status</th>
-              <th className="px-4 py-3 font-medium text-right">Actions</th>
+            <tr className="text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-stone-500">
+              <th className="px-4 py-3">Nume</th>
+              <th className="px-4 py-3">Email</th>
+              <th className="px-4 py-3">Rol</th>
+              <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3 text-right">Acțiuni</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-stone-100">
             {members.map((m) => (
-              <tr key={m.id} className={m.active ? '' : 'opacity-50'}>
+              <tr key={m.id} className={`hover:bg-stone-50 transition-colors ${m.active ? '' : 'opacity-50'}`}>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-brand-50 text-brand-800 flex items-center justify-center text-xs font-semibold overflow-hidden">
-                      {m.avatar_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={m.avatar_url} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        initials(m.name)
-                      )}
-                    </div>
+                    <Avatar name={m.name} src={m.avatar_url} size="sm" />
                     <span className="font-medium text-stone-900">{m.name}</span>
                     {m.id === currentUserId && (
-                      <span className="text-[10px] uppercase text-stone-400">you</span>
+                      <span className="text-[10px] uppercase tracking-[0.06em] text-stone-400">tu</span>
                     )}
                   </div>
                 </td>
                 <td className="px-4 py-3 text-stone-600">{m.email}</td>
                 <td className="px-4 py-3">
-                  <span className={`text-[10px] uppercase tracking-wide font-medium px-2 py-0.5 rounded-full ${ROLE_BADGE[m.role]}`}>
+                  <span className={`text-[10px] uppercase tracking-[0.06em] font-medium px-2 py-0.5 rounded-full ${ROLE_BADGE[m.role]}`}>
                     {m.role}
                   </span>
                 </td>
                 <td className="px-4 py-3">
-                  <span className={`text-xs ${m.active ? 'text-emerald-600' : 'text-stone-400'}`}>
-                    {m.active ? '● active' : '○ inactive'}
+                  <span className={`text-xs ${m.active ? 'text-emerald-700' : 'text-stone-400'}`}>
+                    {m.active ? '● activ' : '○ inactiv'}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-right">
@@ -128,25 +169,25 @@ export function TeamUI({ initialMembers, currentUserId }: Props) {
                     <button
                       type="button"
                       onClick={() => setEditing(m)}
-                      className="px-3 py-1 rounded text-xs bg-stone-100 hover:bg-stone-200 text-stone-700"
+                      className="px-3 py-1.5 rounded-md text-xs bg-stone-100 hover:bg-stone-200 text-stone-700"
                     >
-                      Edit
+                      Editează
                     </button>
                     <button
                       type="button"
                       onClick={() => setResetting(m)}
-                      className="px-3 py-1 rounded text-xs bg-stone-100 hover:bg-stone-200 text-stone-700"
+                      className="px-3 py-1.5 rounded-md text-xs bg-stone-100 hover:bg-stone-200 text-stone-700"
                     >
-                      Reset PIN
+                      Resetează PIN
                     </button>
                     <button
                       type="button"
                       onClick={() => toggleActive(m)}
                       disabled={m.id === currentUserId}
-                      className="px-3 py-1 rounded text-xs bg-stone-100 hover:bg-stone-200 text-stone-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="px-3 py-1.5 rounded-md text-xs bg-stone-100 hover:bg-stone-200 text-stone-700 disabled:opacity-40 disabled:cursor-not-allowed"
                       title={m.id === currentUserId ? 'Nu te poți dezactiva pe tine' : ''}
                     >
-                      {m.active ? 'Deactivate' : 'Activate'}
+                      {m.active ? 'Dezactivează' : 'Activează'}
                     </button>
                   </div>
                 </td>
@@ -246,7 +287,7 @@ function AddModal({ onClose, onCreated }: { onClose: () => void; onCreated: (m: 
 
   return (
     <ModalShell onClose={onClose}>
-      <h2 className="text-lg font-semibold text-stone-900 mb-4">Add member</h2>
+      <h2 className="text-lg font-semibold text-stone-900 mb-4">Adaugă membru</h2>
       <form onSubmit={submit} className="space-y-3">
         <Field label="Name">
           <input value={name} onChange={(e) => setName(e.target.value)} required className={inputCls} />

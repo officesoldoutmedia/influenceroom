@@ -15,16 +15,15 @@ export function LogoutButton() {
     }
   }
 
+  // Wrapper-based hide: the inner Button declares its own `inline-flex` which
+  // would otherwise win over a sibling `hidden` utility on the same element
+  // (Tailwind v4 sort order). Wrapping moves the display rule onto a parent
+  // that has no competing utilities.
   return (
-    <Button
-      type="button"
-      onClick={logout}
-      loading={busy}
-      variant="ghost"
-      size="sm"
-      className="hidden sm:inline-flex"
-    >
-      Ieșire
-    </Button>
+    <div className="hidden sm:block">
+      <Button type="button" onClick={logout} loading={busy} variant="ghost" size="sm">
+        Ieșire
+      </Button>
+    </div>
   )
 }
