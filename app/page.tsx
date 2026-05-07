@@ -32,6 +32,16 @@ export default async function Home() {
           <LogoutButton />
         </div>
         <p className="text-stone-500 text-sm">Sprint 1 in progress.</p>
+        {user.role === 'owner' && (
+          <nav className="mt-6">
+            <a
+              href="/admin/team"
+              className="inline-block px-4 py-2 rounded-lg bg-white shadow-sm text-sm text-stone-900 hover:shadow-md"
+            >
+              Team →
+            </a>
+          </nav>
+        )}
       </div>
     </main>
   )
