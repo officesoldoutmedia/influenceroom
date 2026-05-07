@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { headers } from 'next/headers'
 import { createClient } from '@supabase/supabase-js'
+import { getCloudflareContext } from '@opennextjs/cloudflare'
 import { requireOwner } from '@/lib/auth/require'
 import {
   sendBroadcast,
@@ -8,6 +9,7 @@ import {
   type RecipientFilter,
   type Role,
 } from '@/lib/broadcast/send'
+import { processQueueBatch } from '@/lib/email/queue-worker'
 
 const VALID_METHODS = ['email', 'push'] as const
 type Method = (typeof VALID_METHODS)[number]
@@ -105,6 +107,27 @@ export async function POST(req: NextRequest) {
       recipient_filter: filter,
       methods,
     })
+
+    // Auto-flush: cron is deferred until Workers Paid, so kick the queue worker
+    // for just-enqueued IDs in the background. Response returns immediately;
+    // delivery completes within a few seconds via Resend.
+    if (result.notification_ids.length > 0) {
+      try {
+        const { ctx } = await getCloudflareContext({ async: true })
+        ctx.waitUntil(
+          processQueueBatch({ notification_ids: result.notification_ids }).catch((err) => {
+            console.error('[admin/broadcast] auto-flush failed:', err)
+          }),
+        )
+      } catch (err) {
+        // Local Node dev (no Workers ctx): fall back to fire-and-forget.
+        console.warn('[admin/broadcast] no Cloudflare ctx, running flush inline:', err)
+        processQueueBatch({ notification_ids: result.notification_ids }).catch((e) => {
+          console.error('[admin/broadcast] auto-flush failed:', e)
+        })
+      }
+    }
+
     return NextResponse.json({ ok: true, result })
   } catch (err) {
     console.error('[admin/broadcast] failed:', err)

@@ -30,6 +30,9 @@ export type BroadcastResult = {
   email_fail: number
   push_success: number
   push_fail: number
+  /** Notification rows inserted by this broadcast — caller can pass to
+   * processQueueBatch via ctx.waitUntil for instant flush without cron. */
+  notification_ids: string[]
 }
 
 function admin(): SupabaseClient {
@@ -88,9 +91,11 @@ export async function sendBroadcast(input: BroadcastInput): Promise<BroadcastRes
   let emailFail = 0
   let pushSuccess = 0
   let pushFail = 0
+  const notificationIds: string[] = []
 
-  // Email: enqueue notification rows. The queue worker will deliver them
-  // (or mark them sent in simulated mode if RESEND_API_KEY is unset).
+  // Email: enqueue notification rows. The queue worker delivers them either
+  // via cron (when configured) or via auto-flush in the broadcast handler's
+  // ctx.waitUntil — see app/api/admin/broadcast/route.ts.
   if (input.methods.includes('email')) {
     for (const r of recipients) {
       const rendered = renderEmail({
@@ -102,20 +107,25 @@ export async function sendBroadcast(input: BroadcastInput): Promise<BroadcastRes
           body: input.body,
         },
       })
-      const { error } = await supabase.from('notifications').insert({
-        type: 'broadcast',
-        recipient_id: r.id,
-        recipient_email: r.email,
-        subject: rendered.subject,
-        body_html: rendered.html,
-        body_text: rendered.text,
-        status: 'queued',
-      })
-      if (error) {
+      const { data: inserted, error } = await supabase
+        .from('notifications')
+        .insert({
+          type: 'broadcast',
+          recipient_id: r.id,
+          recipient_email: r.email,
+          subject: rendered.subject,
+          body_html: rendered.html,
+          body_text: rendered.text,
+          status: 'queued',
+        })
+        .select('id')
+        .single<{ id: string }>()
+      if (error || !inserted) {
         emailFail++
-        console.error('[broadcast] email enqueue failed:', r.email, error.message)
+        console.error('[broadcast] email enqueue failed:', r.email, error?.message)
       } else {
         emailSuccess++
+        notificationIds.push(inserted.id)
       }
     }
   }
@@ -181,5 +191,6 @@ export async function sendBroadcast(input: BroadcastInput): Promise<BroadcastRes
     email_fail: emailFail,
     push_success: pushSuccess,
     push_fail: pushFail,
+    notification_ids: notificationIds,
   }
 }

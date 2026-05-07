@@ -36,23 +36,40 @@ All 6 newly-seeded users have **initial PIN `0000`** and should change it on
 first login (owner can reset via `/admin/team` → Reset PIN). Stefan and Oana
 both have owner-level access; either can manage the team.
 
+## Email delivery model
+The notifications table is a queue: every email-producing action (task assigned,
+status changed, deadline reminder, daily digest, campaign started, broadcast)
+inserts a row with `status='queued'`. Actual SMTP delivery via Resend happens in
+`lib/email/queue-worker.ts → processQueueBatch()`. Two paths invoke it:
+
+1. **Cron** (long-term path, currently disabled — see Workers Paid item below).
+   `/api/cron/process-queue` drains FIFO up to 50 rows per tick. Authenticated
+   via `x-cron-secret` header.
+2. **Auto-flush** (Phase 6 follow-up, in beta). `/api/admin/broadcast` collects
+   the IDs it just enqueued and calls `processQueueBatch({notification_ids})`
+   inside `ctx.waitUntil(...)` from `getCloudflareContext()`. Response returns
+   to the UI immediately; emails land 1–3s later. **Only broadcasts get this** —
+   the others (task_assigned, task_status_changed, deadline_reminder,
+   daily_digest, campaign_started) still depend on cron.
+
+**Beta workaround for the cron-dependent types**: owner can manually trigger a
+flush via `/admin/notifications` → "Run worker now" (prompts for CRON_SECRET).
+Until cron is restored, those rows sit in `status='queued'` after their
+triggering action until someone clicks the button.
+
 ## Pending pre-public-launch (Stefan-controlled, not blocking beta)
-- **Resend account + verified sender domain** (e.g. `notify@influenceroom.<tbd>`).
-  Until set, the worker runs in *simulated mode*: emails are marked `sent` in DB
-  with `resend_message_id=null`, but no actual delivery happens. UI surfaces
-  "— (simulated, no Resend key)" in the notification detail modal so it's visible.
+- **Resend account + verified sender domain** — DONE. `notify@influenceroom.ro`
+  is verified in Resend (region eu-west-1). Worker has `RESEND_API_KEY`,
+  `EMAIL_SENDER`, `EMAIL_REPLY_TO` set as secrets. Broadcasts deliver instantly
+  via auto-flush (see "Email delivery model" above).
 - **Workers Paid plan upgrade ($5/mo)** for cron auto-trigger. Until then,
   `[triggers]` block is removed from `wrangler.toml`. Workers Free has a 5-cron
-  account-wide limit and the existing Sold Out Media workers already use the slots.
-  Manual flush available in `/admin/notifications` → "Run worker now".
-- **Wiring once both above are done:**
-  ```
-  wrangler secret put RESEND_API_KEY
-  wrangler secret put EMAIL_SENDER     # e.g. notify@influenceroom.ro
-  wrangler secret put EMAIL_REPLY_TO   # e.g. office@soldoutmedia.ro
-  ```
-  Then re-add `[triggers]` block to `wrangler.toml` (commit `b99d98c` removed it
-  with a placeholder comment showing the original config) and push.
+  account-wide limit and the existing Sold Out Media workers already use the
+  slots. Auto-flush covers broadcasts; the other 5 notification types need cron
+  or a manual `/admin/notifications` → "Run worker now" click in the meantime.
+- **Re-enable cron once upgraded:** re-add `[triggers]` block to `wrangler.toml`
+  (commit `b99d98c` removed it with a placeholder comment showing the original
+  config) and push.
 
 ## Known limitations (deferred to Phase 2 / future sprints)
 - **Custom domain not configured** — using default `*.workers.dev` URL.
