@@ -84,9 +84,13 @@ export function InstallPrompt() {
 
   return (
     <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 max-w-md w-[calc(100%-2rem)] bg-white border border-stone-200 rounded-xl shadow-lg p-3 flex items-center gap-3">
-      <div className="w-9 h-9 rounded-lg bg-brand-700 text-white flex items-center justify-center text-sm font-semibold shrink-0">
-        IR
-      </div>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/icons/icon-192.png"
+        alt=""
+        aria-hidden="true"
+        className="w-9 h-9 rounded-lg shrink-0"
+      />
       <div className="flex-1 text-sm text-stone-800">
         {evt ? (
           <span>Instalează aplicația pentru acces rapid din homescreen.</span>

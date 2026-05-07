@@ -28,18 +28,12 @@
         box-shadow: 0 1px 3px rgba(0,0,0,0.06);
       }
       .badge {
-        width: 64px;
-        height: 64px;
-        border-radius: 50%;
-        background: #6366F1;
-        color: #FFFFFF;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin: 0 auto 16px;
-        font-weight: 700;
-        font-size: 22px;
-        letter-spacing: -1px;
+        display: block;
+        width: 72px;
+        height: 72px;
+        margin: 0 auto 18px;
+        border-radius: 16px;
+        overflow: hidden;
       }
       h1 {
         font-size: 18px;
@@ -56,7 +50,7 @@
       button {
         appearance: none;
         border: 0;
-        background: #6366F1;
+        background: #C2410C;
         color: #FFFFFF;
         font-size: 14px;
         font-weight: 500;
@@ -64,12 +58,12 @@
         border-radius: 8px;
         cursor: pointer;
       }
-      button:hover { background: #4F46E5; }
+      button:hover { background: #9A3412; }
     </style>
   </head>
   <body>
     <div class="card">
-      <div class="badge">IR</div>
+      <img src="/icons/icon-192.png" alt="Influencer Room" class="badge" />
       <h1>Ești offline</h1>
       <p>Verifică conexiunea și reîncarcă pagina.</p>
       <button onclick="window.location.reload()">Reîncearcă</button>

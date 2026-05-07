@@ -1,41 +1,63 @@
-// Render PWA icons from an inline SVG to multiple PNG sizes via sharp.
-// Run: node scripts/generate-icons.mjs
+// Render PWA icons from the IR monogram on the burnt-amber brand background.
+// Run once locally: `node scripts/generate-icons.mjs`
 //
-// Outputs to public/icons + public/favicon.ico. Filenames are stable so the
-// agency can replace branding later by overwriting these files.
+// Source: assets/logo-ir.png (1080×1080, black IR shape on white background).
+// We invert that to get a white IR shape on black, then use the result as a
+// `screen` blend over a solid amber canvas — landing white-on-amber pixels
+// for the icon. Filenames stable so the agency can re-run with a different
+// source PNG without code changes.
 
 import sharp from 'sharp'
 import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
 const PROJECT_ROOT = path.resolve(import.meta.dirname, '..')
+const SOURCE = path.join(PROJECT_ROOT, 'assets', 'logo-ir.png')
 const OUT_ICONS = path.join(PROJECT_ROOT, 'public', 'icons')
 const OUT_FAVICON = path.join(PROJECT_ROOT, 'public', 'favicon.ico')
 
-const BG = '#C2410C' // brand-700 (burnt amber)
+const BRAND = { r: 0xC2, g: 0x41, b: 0x0C, alpha: 1 } // brand-700 #C2410C
 
-function svg({ size, padding = 0 }) {
-  // Padding is in absolute px applied symmetrically (used for maskable safe zone).
+/**
+ * Build a white-IR-on-amber square buffer at the given size.
+ * `padding` is absolute px on each side (used for maskable safe zone).
+ */
+async function renderIconBuffer(size, { padding = 0 } = {}) {
   const inner = size - padding * 2
-  // Cap font size so "IR" fits in the inner box at any scale.
-  const fontSize = Math.round(inner * 0.5)
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-  <rect width="${size}" height="${size}" fill="${BG}"/>
-  <text x="50%" y="50%" dy="0.05em"
-        text-anchor="middle" dominant-baseline="middle"
-        font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
-        font-weight="700"
-        font-size="${fontSize}"
-        fill="#FFFFFF"
-        letter-spacing="-2">IR</text>
-</svg>`
-}
 
-async function renderPng(size, outPath, { padding = 0 } = {}) {
-  const buf = Buffer.from(svg({ size, padding }))
-  await sharp(buf).png().toFile(outPath)
-  return outPath
+  // Step 1: invert the source so the IR letters are white, bg is black.
+  // negate({alpha:false}) preserves the alpha channel.
+  const inverted = await sharp(SOURCE)
+    .flatten({ background: '#FFFFFF' }) // ensure no transparency before inversion
+    .negate({ alpha: false })
+    .resize(inner, inner, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 1 } })
+    .png()
+    .toBuffer()
+
+  // Step 2: solid amber canvas at full output size.
+  const canvas = sharp({
+    create: {
+      width: size,
+      height: size,
+      channels: 4,
+      background: BRAND,
+    },
+  })
+
+  // Step 3: composite the inverted (black bg, white IR) on amber using
+  // `screen` blend — black pixels leave the amber unchanged; white pixels
+  // become white over the amber.
+  return canvas
+    .composite([
+      {
+        input: inverted,
+        top: padding,
+        left: padding,
+        blend: 'screen',
+      },
+    ])
+    .png()
+    .toBuffer()
 }
 
 async function main() {
@@ -51,17 +73,15 @@ async function main() {
 
   for (const t of targets) {
     const out = path.join(OUT_ICONS, t.name)
-    await renderPng(t.size, out, { padding: t.padding ?? 0 })
-    console.log(`wrote ${path.relative(PROJECT_ROOT, out)} (${t.size}x${t.size})`)
+    const buf = await renderIconBuffer(t.size, { padding: t.padding ?? 0 })
+    await writeFile(out, buf)
+    console.log(`wrote ${path.relative(PROJECT_ROOT, out)} (${t.size}×${t.size})`)
   }
 
-  // favicon.ico: render a 32x32 PNG, then write as ICO. sharp supports ICO via
-  // its built-in encoder when the extension is .ico — but to keep the asset
-  // browser-portable across older clients we write a 32x32 PNG renamed .ico,
-  // which all modern browsers accept.
-  const faviconBuf = await sharp(Buffer.from(svg({ size: 32 }))).png().toBuffer()
-  await writeFile(OUT_FAVICON, faviconBuf)
-  console.log(`wrote ${path.relative(PROJECT_ROOT, OUT_FAVICON)} (32x32 png-as-ico)`)
+  // Favicon: 32×32 PNG-as-ICO. Modern browsers accept PNG content under .ico.
+  const favBuf = await renderIconBuffer(32)
+  await writeFile(OUT_FAVICON, favBuf)
+  console.log(`wrote ${path.relative(PROJECT_ROOT, OUT_FAVICON)} (32×32 png-as-ico)`)
 }
 
 main().catch((err) => {

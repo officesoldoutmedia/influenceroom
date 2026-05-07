@@ -40,11 +40,19 @@ export function Nav({ name, role }: { name: string; role: NavRole }) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-3">
           <Link
             href="/"
-            className="font-display text-base sm:text-lg text-stone-900 leading-none flex items-center gap-2"
+            aria-label="Influencer Room — către Dashboard"
+            className="flex items-center -mx-1 px-1 py-1 rounded-md hover:bg-stone-100 transition-colors"
             onClick={() => setOpen(false)}
           >
-            <span className="inline-block w-2 h-2 rounded-full bg-brand-700" aria-hidden="true" />
-            Influencer Room
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logo-wordmark.svg"
+              alt="Influencer Room"
+              width={158}
+              height={13}
+              className="h-3.5 sm:h-[14px] w-auto select-none"
+              draggable={false}
+            />
           </Link>
 
           {/* Desktop links */}
