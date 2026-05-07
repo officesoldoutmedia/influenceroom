@@ -3,6 +3,21 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
+  DndContext,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  closestCenter,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  arrayMove,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import {
   TASK_STATUSES,
   TASK_PRIORITIES,
   type Task,
@@ -142,6 +157,67 @@ export function BoardUI({
     return t.assignee_id === currentUserId
   }
 
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
+
+  async function persistGroupOrder(order: TaskGroup[]) {
+    const res = await fetch(`/api/campaigns/${campaignId}/board/reorder`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        groups: order.map((g, i) => ({ id: g.id, position: i + 1 })),
+      }),
+    })
+    if (!res.ok) {
+      setGroups(initialGroups)
+      alert('Reorder eșuat')
+    }
+  }
+
+  async function persistTaskOrder(groupId: string | null, order: TaskWithAssignee[]) {
+    const res = await fetch(`/api/campaigns/${campaignId}/board/reorder`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        tasks: order.map((t, i) => ({ id: t.id, position: i, group_id: groupId })),
+      }),
+    })
+    if (!res.ok) {
+      setTasks(initialTasks)
+      alert('Reorder eșuat')
+    }
+  }
+
+  function handleDragEnd(e: DragEndEvent) {
+    const { active, over } = e
+    if (!over || active.id === over.id) return
+
+    const activeType = active.data.current?.type as 'task' | 'group' | undefined
+
+    if (activeType === 'group') {
+      const oldIndex = groups.findIndex((g) => g.id === active.id)
+      const newIndex = groups.findIndex((g) => g.id === over.id)
+      if (oldIndex === -1 || newIndex === -1) return
+      const newOrder = arrayMove(groups, oldIndex, newIndex)
+      setGroups(newOrder)
+      void persistGroupOrder(newOrder)
+    } else if (activeType === 'task') {
+      const activeGroupId = (active.data.current?.groupId as string | null | undefined) ?? null
+      const overGroupId = (over.data.current?.groupId as string | null | undefined) ?? null
+      if (activeGroupId !== overGroupId) {
+        // Cross-group drag deferred. Use Edit modal → Group dropdown to move tasks between groups.
+        return
+      }
+      const groupTasks = tasks.filter((t) => t.group_id === activeGroupId)
+      const oldIndex = groupTasks.findIndex((t) => t.id === active.id)
+      const newIndex = groupTasks.findIndex((t) => t.id === over.id)
+      if (oldIndex === -1 || newIndex === -1) return
+      const newOrder = arrayMove(groupTasks, oldIndex, newIndex)
+      const otherTasks = tasks.filter((t) => t.group_id !== activeGroupId)
+      setTasks([...otherTasks, ...newOrder])
+      void persistTaskOrder(activeGroupId, newOrder)
+    }
+  }
+
   return (
     <>
       {groups.length === 0 && tasks.length === 0 && (
@@ -150,98 +226,40 @@ export function BoardUI({
         </p>
       )}
 
-      <div className="space-y-5">
-        {groups.map((g) => {
-          const groupTasks = tasksOf(g.id)
-          const isCollapsed = collapsed.has(g.id)
-          return (
-            <section key={g.id} className="border-t border-stone-100 pt-3">
-              <header className="flex items-center justify-between mb-2">
-                <button
-                  type="button"
-                  onClick={() => toggleCollapse(g.id)}
-                  className="flex items-center gap-2 text-left flex-1 hover:opacity-80"
-                >
-                  <span className="text-stone-400 w-3 inline-block">{isCollapsed ? '▸' : '▾'}</span>
-                  <h3 className="text-sm font-semibold text-stone-900">
-                    {g.position}. {g.name}
-                  </h3>
-                  <span className="text-xs text-stone-500 ml-2">
-                    {groupTasks.length} {groupTasks.length === 1 ? 'task' : 'tasks'}
-                    {g.due_date && ` · due ${g.due_date}`}
-                  </span>
-                </button>
-                {canEdit && (
-                  <RowMenu>
-                    <button onClick={() => setEditingGroup(g)} className={menuItemCls}>Edit</button>
-                    <button onClick={() => deleteGroup(g)} className={`${menuItemCls} text-rose-600`}>Delete</button>
-                  </RowMenu>
-                )}
-              </header>
-
-              {!isCollapsed && (
-                <>
-                  <ul className="divide-y divide-stone-100">
-                    {groupTasks.map((t) => (
-                      <TaskRow
-                        key={t.id}
-                        task={t}
-                        members={members}
-                        canEdit={canEditTask(t)}
-                        canFullEdit={canEdit}
-                        onPatch={(patch) => patchTask(t.id, patch)}
-                        onEdit={() => setEditing(t)}
-                        onDelete={() => deleteTask(t.id, t.title)}
-                      />
-                    ))}
-                    {groupTasks.length === 0 && (
-                      <li className="py-2 text-xs text-stone-400 italic">Niciun task în acest grup.</li>
-                    )}
-                  </ul>
-
-                  {canEdit && (
-                    <div className="mt-2 pl-6">
-                      {addingTaskInGroup === g.id ? (
-                        <form
-                          onSubmit={async (e) => {
-                            e.preventDefault()
-                            await addTask(g.id, addingTaskTitle)
-                          }}
-                        >
-                          <input
-                            value={addingTaskTitle}
-                            onChange={(e) => setAddingTaskTitle(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Escape') {
-                                setAddingTaskInGroup(null)
-                                setAddingTaskTitle('')
-                              }
-                            }}
-                            onBlur={() => {
-                              if (!addingTaskTitle.trim()) setAddingTaskInGroup(null)
-                            }}
-                            autoFocus
-                            placeholder="Task title — Enter to save, Esc to cancel"
-                            className="w-full px-3 py-1.5 border border-stone-300 rounded-lg text-sm focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100"
-                          />
-                        </form>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => setAddingTaskInGroup(g.id)}
-                          className="text-xs text-stone-500 hover:text-indigo-700"
-                        >
-                          + Add task
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </>
-              )}
-            </section>
-          )
-        })}
-      </div>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={groups.map((g) => g.id)} strategy={verticalListSortingStrategy}>
+          <div className="space-y-5">
+            {groups.map((g) => (
+              <SortableGroupSection
+                key={g.id}
+                group={g}
+                tasks={tasksOf(g.id)}
+                members={members}
+                canEdit={canEdit}
+                canEditTask={canEditTask}
+                isCollapsed={collapsed.has(g.id)}
+                onToggleCollapse={() => toggleCollapse(g.id)}
+                onEditGroup={() => setEditingGroup(g)}
+                onDeleteGroup={() => deleteGroup(g)}
+                onPatchTask={patchTask}
+                onEditTask={(t) => setEditing(t)}
+                onDeleteTask={(t) => deleteTask(t.id, t.title)}
+                addingTask={addingTaskInGroup === g.id}
+                addingTaskTitle={addingTaskTitle}
+                onSetAddingTaskTitle={setAddingTaskTitle}
+                onStartAddTask={() => setAddingTaskInGroup(g.id)}
+                onCancelAddTask={() => {
+                  setAddingTaskInGroup(null)
+                  setAddingTaskTitle('')
+                }}
+                onSubmitAddTask={async () => {
+                  await addTask(g.id, addingTaskTitle)
+                }}
+              />
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
 
       {canEdit && (
         <div className="mt-6 pt-4 border-t border-stone-100">
@@ -295,6 +313,152 @@ export function BoardUI({
 
 const menuItemCls = 'block w-full text-left px-3 py-1.5 text-xs hover:bg-stone-100 rounded'
 
+function SortableGroupSection({
+  group,
+  tasks,
+  members,
+  canEdit,
+  canEditTask,
+  isCollapsed,
+  onToggleCollapse,
+  onEditGroup,
+  onDeleteGroup,
+  onPatchTask,
+  onEditTask,
+  onDeleteTask,
+  addingTask,
+  addingTaskTitle,
+  onSetAddingTaskTitle,
+  onStartAddTask,
+  onCancelAddTask,
+  onSubmitAddTask,
+}: {
+  group: TaskGroup
+  tasks: TaskWithAssignee[]
+  members: Member[]
+  canEdit: boolean
+  canEditTask: (t: TaskWithAssignee) => boolean
+  isCollapsed: boolean
+  onToggleCollapse: () => void
+  onEditGroup: () => void
+  onDeleteGroup: () => void
+  onPatchTask: (id: string, patch: Partial<TaskWithAssignee>) => void | Promise<void>
+  onEditTask: (t: TaskWithAssignee) => void
+  onDeleteTask: (t: TaskWithAssignee) => void | Promise<void>
+  addingTask: boolean
+  addingTaskTitle: string
+  onSetAddingTaskTitle: (s: string) => void
+  onStartAddTask: () => void
+  onCancelAddTask: () => void
+  onSubmitAddTask: () => Promise<void>
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: group.id,
+    data: { type: 'group' },
+  })
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+  const taskIds = tasks.map((t) => t.id)
+  return (
+    <section ref={setNodeRef} style={style} className="border-t border-stone-100 pt-3">
+      <header className="flex items-center justify-between mb-2 gap-2">
+        {canEdit && (
+          <span
+            {...attributes}
+            {...listeners}
+            className="text-stone-400 cursor-grab active:cursor-grabbing select-none px-1"
+            title="Drag to reorder group"
+          >
+            ⋮⋮
+          </span>
+        )}
+        <button
+          type="button"
+          onClick={onToggleCollapse}
+          className="flex items-center gap-2 text-left flex-1 hover:opacity-80"
+        >
+          <span className="text-stone-400 w-3 inline-block">{isCollapsed ? '▸' : '▾'}</span>
+          <h3 className="text-sm font-semibold text-stone-900">
+            {group.position}. {group.name}
+          </h3>
+          <span className="text-xs text-stone-500 ml-2">
+            {tasks.length} {tasks.length === 1 ? 'task' : 'tasks'}
+            {group.due_date && ` · due ${group.due_date}`}
+          </span>
+        </button>
+        {canEdit && (
+          <RowMenu>
+            <button onClick={onEditGroup} className={menuItemCls}>Edit</button>
+            <button onClick={onDeleteGroup} className={`${menuItemCls} text-rose-600`}>Delete</button>
+          </RowMenu>
+        )}
+      </header>
+
+      {!isCollapsed && (
+        <>
+          <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
+            <ul className="divide-y divide-stone-100">
+              {tasks.map((t) => (
+                <TaskRow
+                  key={t.id}
+                  task={t}
+                  members={members}
+                  canEdit={canEditTask(t)}
+                  canFullEdit={canEdit}
+                  onPatch={(patch) => onPatchTask(t.id, patch)}
+                  onEdit={() => onEditTask(t)}
+                  onDelete={() => onDeleteTask(t)}
+                />
+              ))}
+              {tasks.length === 0 && (
+                <li className="py-2 text-xs text-stone-400 italic">Niciun task în acest grup.</li>
+              )}
+            </ul>
+          </SortableContext>
+
+          {canEdit && (
+            <div className="mt-2 pl-6">
+              {addingTask ? (
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault()
+                    await onSubmitAddTask()
+                  }}
+                >
+                  <input
+                    value={addingTaskTitle}
+                    onChange={(e) => onSetAddingTaskTitle(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') onCancelAddTask()
+                    }}
+                    onBlur={() => {
+                      if (!addingTaskTitle.trim()) onCancelAddTask()
+                    }}
+                    autoFocus
+                    placeholder="Task title — Enter to save, Esc to cancel"
+                    className="w-full px-3 py-1.5 border border-stone-300 rounded-lg text-sm focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100"
+                  />
+                </form>
+              ) : (
+                <button
+                  type="button"
+                  onClick={onStartAddTask}
+                  className="text-xs text-stone-500 hover:text-indigo-700"
+                >
+                  + Add task
+                </button>
+              )}
+            </div>
+          )}
+        </>
+      )}
+    </section>
+  )
+}
+
 function RowMenu({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -342,9 +506,29 @@ function TaskRow({
   onEdit: () => void
   onDelete: () => void
 }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: task.id,
+    data: { type: 'task', groupId: task.group_id },
+  })
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
   return (
-    <li className="py-2 flex items-center gap-2 text-sm">
-      <span className="w-3 text-stone-300 cursor-not-allowed select-none" title="Drag (Sprint 7)">⋮⋮</span>
+    <li ref={setNodeRef} style={style} className="py-2 flex items-center gap-2 text-sm">
+      {canFullEdit ? (
+        <span
+          {...attributes}
+          {...listeners}
+          className="w-3 text-stone-400 cursor-grab active:cursor-grabbing select-none"
+          title="Drag to reorder within group"
+        >
+          ⋮⋮
+        </span>
+      ) : (
+        <span className="w-3 text-stone-200 select-none">⋮⋮</span>
+      )}
 
       <select
         value={task.status}
