@@ -21,6 +21,7 @@ export type InfluencerInput = {
   exclusive?: boolean
   status?: string
   notes?: string | null
+  account_manager_id?: string | null
 }
 
 export type ValidateResult =
@@ -79,6 +80,15 @@ export function validateAndNormalize(body: InfluencerInput, partial = false): Va
     out.status = body.status
   }
   if (body.notes !== undefined) out.notes = body.notes?.trim() || null
+  if (body.account_manager_id !== undefined) {
+    if (body.account_manager_id === null || body.account_manager_id === '') {
+      out.account_manager_id = null
+    } else if (typeof body.account_manager_id === 'string' && /^[0-9a-f-]{36}$/i.test(body.account_manager_id)) {
+      out.account_manager_id = body.account_manager_id
+    } else {
+      return { ok: false, error: 'invalid_account_manager' }
+    }
+  }
 
   return { ok: true, data: out }
 }

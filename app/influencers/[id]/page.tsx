@@ -3,7 +3,7 @@ import { redirect, notFound } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
 import Link from 'next/link'
 import { Nav, type NavRole } from '@/app/_components/nav'
-import { PLATFORMS, type Influencer, type Tier } from '@/lib/influencers/types'
+import { PLATFORMS, type Influencer, type Tier, type ManagerSummary } from '@/lib/influencers/types'
 import { formatFollowers } from '@/lib/influencers/format'
 import { DetailUI } from './detail-ui'
 
@@ -34,19 +34,22 @@ export default async function InfluencerDetailPage({
     { auth: { persistSession: false, autoRefreshToken: false } },
   )
 
-  const { data: me } = await supabase
-    .from('team_members')
-    .select('name')
-    .eq('id', userId)
-    .maybeSingle()
-
-  const { data: i } = await supabase
-    .from('influencers')
-    .select('*')
-    .eq('id', id)
-    .maybeSingle<Influencer>()
+  const [{ data: me }, { data: i }, { data: managers }] = await Promise.all([
+    supabase.from('team_members').select('name').eq('id', userId).maybeSingle(),
+    supabase.from('influencers').select('*').eq('id', id).maybeSingle<Influencer>(),
+    supabase
+      .from('team_members')
+      .select('id, name, role')
+      .eq('active', true)
+      .in('role', ['owner', 'manager', 'account'])
+      .order('name'),
+  ])
 
   if (!i) notFound()
+
+  const managerName = i.account_manager_id
+    ? ((managers ?? []) as ManagerSummary[]).find((m) => m.id === i.account_manager_id)?.name ?? null
+    : null
 
   const canWrite = role === 'owner' || role === 'manager' || role === 'account'
 
@@ -85,11 +88,20 @@ export default async function InfluencerDetailPage({
                   </div>
                 </div>
               </div>
-              {canWrite && <DetailUI influencer={i} />}
+              {canWrite && (
+                <DetailUI influencer={i} managers={(managers ?? []) as ManagerSummary[]} />
+              )}
             </div>
 
+            <p className="text-sm text-stone-500 mt-3">
+              <span className="text-stone-400">Account manager:</span>{' '}
+              <span className={managerName ? 'text-stone-700' : 'italic text-stone-400'}>
+                {managerName ?? 'Unassigned'}
+              </span>
+            </p>
+
             {(i.location_city || i.location_country) && (
-              <p className="text-sm text-stone-500 mt-3">
+              <p className="text-sm text-stone-500 mt-1">
                 {[i.location_city, i.location_country].filter(Boolean).join(', ')}
                 {i.language && ` · ${i.language}`}
               </p>

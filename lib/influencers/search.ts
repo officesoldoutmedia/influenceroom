@@ -11,6 +11,8 @@ export type SearchParams = {
   fmax?: number | null
   tags?: string[]
   status?: string | null
+  /** uuid | "unassigned" | null */
+  manager?: string | null
   page?: number
 }
 
@@ -44,6 +46,12 @@ export async function searchInfluencers(p: SearchParams): Promise<SearchResult> 
   if (tiers.length) query = query.in('tier', tiers)
   if (tags.length) query = query.contains('niche_tags', tags)
   if (status && (STATUSES as readonly string[]).includes(status)) query = query.eq('status', status)
+
+  if (p.manager === 'unassigned') {
+    query = query.is('account_manager_id', null)
+  } else if (p.manager && /^[0-9a-f-]{36}$/i.test(p.manager)) {
+    query = query.eq('account_manager_id', p.manager)
+  }
 
   const rangePlatform: Platform | null =
     platformFilter ?? (p.fmin != null || p.fmax != null ? 'instagram' : null)

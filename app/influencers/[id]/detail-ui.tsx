@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import type { Influencer } from '@/lib/influencers/types'
+import type { Influencer, ManagerSummary } from '@/lib/influencers/types'
 import {
   influencerToForm,
   formToPayload,
@@ -32,7 +32,7 @@ function ErrorMap(code: string): string {
   } as Record<string, string>)[code] ?? code
 }
 
-export function DetailUI({ influencer }: { influencer: Influencer }) {
+export function DetailUI({ influencer, managers }: { influencer: Influencer; managers: ManagerSummary[] }) {
   const router = useRouter()
   const [editing, setEditing] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -63,6 +63,7 @@ export function DetailUI({ influencer }: { influencer: Influencer }) {
       {editing && (
         <EditModal
           influencer={influencer}
+          managers={managers}
           onClose={() => setEditing(false)}
           onSaved={() => {
             setEditing(false)
@@ -76,10 +77,12 @@ export function DetailUI({ influencer }: { influencer: Influencer }) {
 
 function EditModal({
   influencer,
+  managers,
   onClose,
   onSaved,
 }: {
   influencer: Influencer
+  managers: ManagerSummary[]
   onClose: () => void
   onSaved: () => void
 }) {
@@ -107,7 +110,7 @@ function EditModal({
       <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-2xl my-8" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-lg font-semibold text-stone-900 mb-2">Edit {influencer.name}</h2>
         <form onSubmit={submit}>
-          <InfluencerFormFields form={form} set={setForm} />
+          <InfluencerFormFields form={form} set={setForm} managers={managers} />
           {error && <p className="text-sm text-rose-600 mt-3">{error}</p>}
           <div className="flex justify-end gap-2 pt-4 mt-4 border-t border-stone-200">
             <button type="button" onClick={onClose} className={btnSecondary}>Cancel</button>

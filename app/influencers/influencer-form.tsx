@@ -12,6 +12,7 @@ import {
   type Influencer,
   type PlatformStats,
   type FiscalData,
+  type ManagerSummary,
 } from '@/lib/influencers/types'
 
 export type FormValues = {
@@ -35,9 +36,10 @@ export type FormValues = {
   exclusive: boolean
   status: InfluencerStatus
   notes: string
+  account_manager_id: string
 }
 
-export function emptyForm(): FormValues {
+export function emptyForm(defaultManagerId: string = ''): FormValues {
   return {
     name: '',
     primary_handle: '',
@@ -59,6 +61,7 @@ export function emptyForm(): FormValues {
     exclusive: false,
     status: 'active',
     notes: '',
+    account_manager_id: defaultManagerId,
   }
 }
 
@@ -84,6 +87,7 @@ export function influencerToForm(i: Influencer): FormValues {
     exclusive: i.exclusive,
     status: i.status,
     notes: i.notes ?? '',
+    account_manager_id: i.account_manager_id ?? '',
   }
 }
 
@@ -126,6 +130,7 @@ export function formToPayload(f: FormValues): Record<string, unknown> {
     exclusive: f.exclusive,
     status: f.status,
     notes: f.notes.trim() || null,
+    account_manager_id: f.account_manager_id || null,
   }
 }
 
@@ -144,7 +149,15 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   )
 }
 
-export function InfluencerFormFields({ form, set }: { form: FormValues; set: (f: FormValues) => void }) {
+export function InfluencerFormFields({
+  form,
+  set,
+  managers,
+}: {
+  form: FormValues
+  set: (f: FormValues) => void
+  managers: ManagerSummary[]
+}) {
   const [tagInput, setTagInput] = useState('')
 
   function addTag(t: string) {
@@ -337,7 +350,7 @@ export function InfluencerFormFields({ form, set }: { form: FormValues; set: (f:
         </Field>
       </div>
 
-      <h3 className={sectionTitle}>Status & notes</h3>
+      <h3 className={sectionTitle}>Status & ownership</h3>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Status">
           <select value={form.status} onChange={(e) => set({ ...form, status: e.target.value as InfluencerStatus })} className={inputCls}>
@@ -346,11 +359,23 @@ export function InfluencerFormFields({ form, set }: { form: FormValues; set: (f:
             ))}
           </select>
         </Field>
-        <label className="flex items-center gap-2 mt-5">
-          <input type="checkbox" checked={form.exclusive} onChange={(e) => set({ ...form, exclusive: e.target.checked })} />
-          <span className="text-sm text-stone-700">Exclusive</span>
-        </label>
+        <Field label="Account manager">
+          <select
+            value={form.account_manager_id}
+            onChange={(e) => set({ ...form, account_manager_id: e.target.value })}
+            className={inputCls}
+          >
+            <option value="">— Unassigned —</option>
+            {managers.map((m) => (
+              <option key={m.id} value={m.id}>{m.name}</option>
+            ))}
+          </select>
+        </Field>
       </div>
+      <label className="flex items-center gap-2">
+        <input type="checkbox" checked={form.exclusive} onChange={(e) => set({ ...form, exclusive: e.target.checked })} />
+        <span className="text-sm text-stone-700">Exclusive</span>
+      </label>
       <Field label="Notes">
         <textarea value={form.notes} onChange={(e) => set({ ...form, notes: e.target.value })} className={textareaCls} />
       </Field>

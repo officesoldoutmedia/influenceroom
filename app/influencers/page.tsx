@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
 import { Nav, type NavRole } from '@/app/_components/nav'
 import { searchInfluencers } from '@/lib/influencers/search'
+import type { ManagerSummary } from '@/lib/influencers/types'
 import { InfluencersUI } from './influencers-ui'
 
 export const dynamic = 'force-dynamic'
@@ -39,11 +40,15 @@ export default async function InfluencersPage({
     { auth: { persistSession: false, autoRefreshToken: false } },
   )
 
-  const { data: me } = await supabase
-    .from('team_members')
-    .select('name')
-    .eq('id', userId)
-    .maybeSingle()
+  const [{ data: me }, { data: managers }] = await Promise.all([
+    supabase.from('team_members').select('name, role').eq('id', userId).maybeSingle(),
+    supabase
+      .from('team_members')
+      .select('id, name, role')
+      .eq('active', true)
+      .in('role', ['owner', 'manager', 'account'])
+      .order('name'),
+  ])
 
   const filters = {
     q: strParam(sp.q),
@@ -53,6 +58,7 @@ export default async function InfluencersPage({
     fmax: numParam(sp.fmax),
     tags: arrayParam(sp.tag),
     status: strParam(sp.status),
+    manager: strParam(sp.manager),
     page: numParam(sp.page) ?? 1,
   }
 
@@ -71,6 +77,8 @@ export default async function InfluencersPage({
             pageSize={result.pageSize}
             initialFilters={filters}
             role={role}
+            currentUserId={userId}
+            managers={(managers ?? []) as ManagerSummary[]}
           />
         </div>
       </main>

@@ -9,6 +9,7 @@ import {
   PRESET_TAGS,
   type Tier,
   type Influencer,
+  type ManagerSummary,
 } from '@/lib/influencers/types'
 import { formatFollowers } from '@/lib/influencers/format'
 import {
@@ -36,6 +37,7 @@ type Filters = {
   fmax: number | null
   tags: string[]
   status: string | null
+  manager: string | null
   page: number
 }
 
@@ -48,6 +50,8 @@ export function InfluencersUI({
   pageSize,
   initialFilters,
   role,
+  currentUserId,
+  managers,
 }: {
   initialItems: Influencer[]
   total: number
@@ -55,6 +59,8 @@ export function InfluencersUI({
   pageSize: number
   initialFilters: Filters
   role: Role
+  currentUserId: string
+  managers: ManagerSummary[]
 }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -80,10 +86,13 @@ export function InfluencersUI({
     if (merged.fmax != null) params.set('fmax', String(merged.fmax))
     for (const t of merged.tags) params.append('tag', t)
     if (merged.status) params.set('status', merged.status)
+    if (merged.manager) params.set('manager', merged.manager)
     if (merged.page > 1) params.set('page', String(merged.page))
     const qs = params.toString()
     router.push(qs ? `${pathname}?${qs}` : pathname)
   }
+
+  const managerNameById = new Map(managers.map((m) => [m.id, m.name]))
 
   function upsert(inf: Influencer) {
     setItems((prev) => {
@@ -97,7 +106,13 @@ export function InfluencersUI({
 
   return (
     <>
-      <FilterBar filters={initialFilters} onApply={pushFilters} canWrite={canWrite} onAdd={() => setShowAdd(true)} />
+      <FilterBar
+        filters={initialFilters}
+        onApply={pushFilters}
+        canWrite={canWrite}
+        onAdd={() => setShowAdd(true)}
+        managers={managers}
+      />
 
       {items.length === 0 ? (
         <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
@@ -114,6 +129,7 @@ export function InfluencersUI({
                 <th className="px-4 py-3 font-medium">Name</th>
                 <th className="px-4 py-3 font-medium">Primary</th>
                 <th className="px-4 py-3 font-medium">Tier</th>
+                <th className="px-4 py-3 font-medium">Manager</th>
                 <th className="px-4 py-3 font-medium">Niches</th>
                 <th className="px-4 py-3 font-medium text-right">Followers</th>
                 <th className="px-4 py-3 font-medium">Status</th>
@@ -136,6 +152,13 @@ export function InfluencersUI({
                       <span className={`text-[10px] uppercase tracking-wide font-medium px-2 py-0.5 rounded-full ${TIER_BADGE[i.tier]}`}>
                         {i.tier}
                       </span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-stone-600">
+                    {i.account_manager_id ? (
+                      managerNameById.get(i.account_manager_id) ?? '—'
+                    ) : (
+                      <span className="text-stone-400 italic">Unassigned</span>
                     )}
                   </td>
                   <td className="px-4 py-3">
@@ -193,7 +216,8 @@ export function InfluencersUI({
       {showAdd && (
         <FormModal
           title="Add influencer"
-          initial={emptyForm()}
+          initial={emptyForm(role === 'account' ? currentUserId : '')}
+          managers={managers}
           onClose={() => setShowAdd(false)}
           onSaved={(inf) => {
             upsert(inf)
@@ -209,7 +233,7 @@ export function InfluencersUI({
 }
 
 function hasActiveFilter(f: Filters): boolean {
-  return !!(f.q || f.tiers.length || f.platform || f.fmin != null || f.fmax != null || f.tags.length || f.status)
+  return !!(f.q || f.tiers.length || f.platform || f.fmin != null || f.fmax != null || f.tags.length || f.status || f.manager)
 }
 
 function primaryFollowers(i: Influencer): string {
@@ -225,11 +249,13 @@ function FilterBar({
   onApply,
   canWrite,
   onAdd,
+  managers,
 }: {
   filters: Filters
   onApply: (next: Partial<Filters>) => void
   canWrite: boolean
   onAdd: () => void
+  managers: ManagerSummary[]
 }) {
   const [q, setQ] = useState(filters.q ?? '')
   const [tiers, setTiers] = useState<string[]>(filters.tiers)
@@ -237,6 +263,7 @@ function FilterBar({
   const [fmin, setFmin] = useState<string>(filters.fmin != null ? String(filters.fmin) : '')
   const [fmax, setFmax] = useState<string>(filters.fmax != null ? String(filters.fmax) : '')
   const [tags, setTags] = useState<string[]>(filters.tags)
+  const [manager, setManager] = useState<string>(filters.manager ?? '')
 
   // Debounce search input
   useEffect(() => {
@@ -274,7 +301,8 @@ function FilterBar({
     setFmin('')
     setFmax('')
     setTags([])
-    onApply({ q: null, tiers: [], platform: null, fmin: null, fmax: null, tags: [], status: null, page: 1 })
+    setManager('')
+    onApply({ q: null, tiers: [], platform: null, fmin: null, fmax: null, tags: [], status: null, manager: null, page: 1 })
   }
 
   const hasFilter = useMemo(() => hasActiveFilter(filters), [filters])
@@ -292,6 +320,20 @@ function FilterBar({
           <option value="">Any platform</option>
           {PLATFORMS.map((p) => (
             <option key={p} value={p}>{p}</option>
+          ))}
+        </select>
+        <select
+          value={manager}
+          onChange={(e) => {
+            setManager(e.target.value)
+            onApply({ manager: e.target.value || null })
+          }}
+          className="px-3 py-2 border border-stone-300 rounded-lg text-sm"
+        >
+          <option value="">All managers</option>
+          <option value="unassigned">Unassigned</option>
+          {managers.map((m) => (
+            <option key={m.id} value={m.id}>{m.name}</option>
           ))}
         </select>
         <input
@@ -387,6 +429,7 @@ function FormModal({
   onSaved,
   method,
   url,
+  managers,
 }: {
   title: string
   initial: FormValues
@@ -394,6 +437,7 @@ function FormModal({
   onSaved: (i: Influencer) => void
   method: 'POST' | 'PATCH'
   url: string
+  managers: ManagerSummary[]
 }) {
   const [form, setForm] = useState<FormValues>(initial)
   const [error, setError] = useState<string | null>(null)
@@ -419,7 +463,7 @@ function FormModal({
       <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-2xl my-8" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-lg font-semibold text-stone-900 mb-2">{title}</h2>
         <form onSubmit={submit}>
-          <InfluencerFormFields form={form} set={setForm} />
+          <InfluencerFormFields form={form} set={setForm} managers={managers} />
           {error && <p className="text-sm text-rose-600 mt-3">{error}</p>}
           <div className="flex justify-end gap-2 pt-4 mt-4 border-t border-stone-200">
             <button type="button" onClick={onClose} className={btnSecondary}>Cancel</button>

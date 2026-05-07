@@ -42,9 +42,12 @@ export type Influencer = {
   exclusive: boolean
   status: InfluencerStatus
   notes: string | null
+  account_manager_id: string | null
   created_at: string
   updated_at: string
 }
+
+export type ManagerSummary = { id: string; name: string; role: string }
 
 export const PRESET_TAGS = [
   'fashion',
