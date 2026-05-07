@@ -1,23 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { verify, COOKIE_NAME } from '@/lib/auth/jwt'
 
 export async function proxy(req: NextRequest) {
-  const token = req.cookies.get('session')?.value
-  const userId = await verifyToken(token)
+  const token = req.cookies.get(COOKIE_NAME)?.value
+  const session = token ? await verify(token) : null
 
-  const requestHeaders = new Headers(req.headers)
-  if (userId) {
-    requestHeaders.set('x-user-id', userId)
+  if (!session) {
+    const url = new URL('/login', req.url)
+    url.searchParams.set('next', req.nextUrl.pathname + req.nextUrl.search)
+    return NextResponse.redirect(url)
   }
 
-  return NextResponse.next({
-    request: { headers: requestHeaders },
-  })
-}
+  const headers = new Headers(req.headers)
+  headers.set('x-user-id', session.user_id)
+  headers.set('x-user-role', session.role)
 
-async function verifyToken(_token: string | undefined): Promise<string | null> {
-  return null
+  return NextResponse.next({ request: { headers } })
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  matcher: ['/((?!login|api/auth|_next|favicon.ico|public).*)'],
 }
