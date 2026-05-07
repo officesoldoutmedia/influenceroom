@@ -44,6 +44,16 @@ export async function enqueueNotification(args: RenderArgs, opts: EnqueueOpts): 
     const onlyForRoles = cfg.only_for_roles
     if (Array.isArray(onlyForRoles) && !onlyForRoles.includes(opts.recipient.role)) return
 
+    // Per-recipient opt-out (Sprint 8 Phase 4). Treat missing pref entry as
+    // opt-in so users seeded before migration 015 still receive everything.
+    const { data: prefRow } = await supabase
+      .from('team_members')
+      .select('notification_prefs')
+      .eq('id', opts.recipient.id)
+      .maybeSingle<{ notification_prefs: Record<string, unknown> | null }>()
+    const prefs = prefRow?.notification_prefs ?? {}
+    if (prefs[args.type] === false) return
+
     const rendered = renderEmail(args)
 
     const { error } = await supabase.from('notifications').insert({
