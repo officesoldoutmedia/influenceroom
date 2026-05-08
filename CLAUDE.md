@@ -214,8 +214,55 @@ any rate is set). The detail page renders one table per non-empty
 platform with rate→fee rows + subtotal, walking
 `RATE_TYPES_PER_PLATFORM` so order is canonical (UR-30 always last).
 
-**Sprint 13b (next)** ships PDF export from rate_cards (React-PDF +
-Supabase Storage bucket `rate-cards`).
+## Rate card PDF generation (Sprint 13b)
+On-demand branded PDF export from `rate_cards`. Migration 036 created the
+`rate-cards` Supabase Storage bucket (private) plus three
+`*_authenticated_*` RLS policies (defence-in-depth — server-side code uses
+service_role and bypasses RLS, same Path A pattern as the rest of the
+schema).
+
+**Library:** `pdf-lib` (1.17.1, ~340 KB). Picked over `@react-pdf/renderer`
+because it's pure JS, has zero native deps, and bundles cleanly into the
+@opennextjs/cloudflare worker without fontkit-in-Workers fragility. Standard
+14 PDF fonts (Times-Roman / Helvetica / Courier-Bold) ship inline so the
+generator has no external asset fetch — keeps cold-start fast and the
+Worker bundle lean.
+
+**Design** (`lib/rate-cards/pdf-generator.ts`): A4 portrait, 56pt margins.
+Cover page = "INFLUENCE ROOM" wordmark + "MEDIA KIT 2026" right-aligned +
+brand-amber divider, centered influencer name (auto-shrinks if it overflows
+content width: 48 → 42 → 36 → 30 → 24 → 22 pt), tier strap-line
+(`TIER_LABELS_RANGE` uppercased in burnt amber), primary handle, then a
+horizontal stats row (one cell per platform with > 0 followers, label in
+sans + count in Courier-Bold 22pt). Rate pages = one block per non-empty
+platform with `RATE_TYPES_PER_PLATFORM` order preserved (UR-30 always
+last), subtotal in burnt amber. Closing page has the contact line + "© 2026
+Influence Room" footer. Page-break logic estimates the next block's height
+and starts a fresh page when it would clip the footer.
+
+**API** `/api/influencers/[id]/rate-card-pdf`:
+- `POST` → render PDF, upload to
+  `rate-cards/<influencer_id>/<timestamp>-rate-card.pdf`, prune to the
+  latest 5 versions for that influencer, return a 1h signed URL +
+  `path` + `generatedAt`. Returns `422 no_rates_to_export` when
+  `hasAnyRate(rate_cards)` is false. Path A: `requireInfluencerWriter`.
+- `GET ?path=...` → re-mint a 1h signed URL for an existing path.
+  Path A: `canReadInfluencer` + path-prefix guard (the requested
+  `path` must start with `<influencer_id>/` — defends against signing
+  someone else's PDF if the user has read access to influencer A but
+  not B).
+
+**UI:** `RateCardPdfButton` (`app/influencers/[id]/rate-card-pdf-button.tsx`)
+sits in the Rate Cards section header. Idle / loading / success / error
+states; opens the signed URL in a new tab on success. Disabled with a
+tooltip ("Adaugă rate-uri înainte de a genera PDF") when `hasAnyRate` is
+false, so the affordance is visible even when not actionable.
+
+**Cleanup policy:** keep 5 most-recent versions per influencer, drop the
+rest. Pruning runs in the POST flow after upload — failures are
+non-blocking (the user already has their fresh signed URL). Supabase
+Storage list is sorted by `name DESC` and timestamp-prefixed filenames
+mean lexical order matches chronological order.
 
 ## Known limitations (deferred to Phase 2 / future sprints)
 - **Custom domain not configured** — using default `*.workers.dev` URL.

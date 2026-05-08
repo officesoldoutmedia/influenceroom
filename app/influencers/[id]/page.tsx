@@ -18,6 +18,7 @@ import {
 import { formatFollowers, formatEur } from '@/lib/influencers/format'
 import { DetailUI } from './detail-ui'
 import { ScoreSection } from './score-section'
+import { RateCardPdfButton } from './rate-card-pdf-button'
 import { canReadInfluencer, isOwnerOrManager } from '@/lib/auth/scope'
 import type { InfluencerScore, ScoreHistoryEntry } from '@/lib/scoring/types'
 import {
@@ -26,6 +27,7 @@ import {
   countRatesForPlatform,
   totalRatesForPlatform,
   totalRateCount,
+  hasAnyRate,
   type RateCard,
   type RateCards,
 } from '@/lib/rate-cards/types'
@@ -282,9 +284,22 @@ function RateCardsSection({
   influencerId: string
 }) {
   const total = totalRateCount(rateCards)
+  const empty = !hasAnyRate(rateCards)
   return (
-    <Section title={`Rate Cards${total > 0 ? ` (${total} activate)` : ''}`}>
-      {total === 0 ? (
+    <div className="bg-white rounded-2xl shadow-sm p-6 mb-4">
+      <div className="flex items-start justify-between gap-3 mb-3 flex-wrap">
+        <h2 className="text-sm font-semibold text-stone-900 uppercase tracking-wide">
+          {`Rate Cards${total > 0 ? ` (${total} activate)` : ''}`}
+        </h2>
+        {canEdit && (
+          <RateCardPdfButton
+            influencerId={influencerId}
+            disabled={empty}
+            disabledReason={empty ? 'Adaugă rate-uri înainte de a genera PDF' : undefined}
+          />
+        )}
+      </div>
+      {empty ? (
         <p className="text-sm text-stone-400">
           Niciun rate card completat.
           {canEdit && (
@@ -306,7 +321,7 @@ function RateCardsSection({
           })}
         </div>
       )}
-    </Section>
+    </div>
   )
 }
 

@@ -35,14 +35,44 @@ rate cards SEPARATE per platformă cu rate types specifice + UR-30 universal.
 **Notă pentru UI sortable score column** (deferred din Sprint 10) — rămâne deferred,
 nu intra în acest sprint.
 
-## 13b — PDF export (next)
+## 13b — PDF export ✅
 
-Outline din Stefan, neimplementat încă:
-- React-PDF pentru render cu design branded (logo Influence Room, palette
-  burnt amber, Fraunces titluri, Geist body)
-- Supabase Storage bucket `rate-cards`, signed URLs cu TTL 24h
-- Endpoint `/api/influencers/[id]/rate-card-pdf` (path A scoping —
-  influencerul aparține account managerului sau e unassigned)
-- UI button "Generează PDF" pe `/influencers/[id]` lângă Edit
-- Decizie: regen on every download vs. cache 1h. Default cache 1h, force-fresh
-  cu query `?fresh=1`
+| # | Item |
+|---|------|
+| 1 | Migration 036: Storage bucket `rate-cards` (private) + 3 `authenticated` RLS policies (insert/select/delete) |
+| 2 | `lib/rate-cards/pdf-generator.ts` — pdf-lib generator with A4 portrait, brand wordmark, auto-shrink influencer name, stats row, per-platform rate tables, closing page |
+| 3 | `/api/influencers/[id]/rate-card-pdf` POST (render + upload + prune-keep-5 + 1h signed URL) and GET `?path=` (re-mint signed URL with path-prefix scope guard) |
+| 4 | `RateCardPdfButton` in Rate Cards section header — idle/loading/success/error states, disabled tooltip when no rates set |
+
+**Library decision:** `pdf-lib` 1.17.1 over `@react-pdf/renderer`. Pure JS,
+~340 KB, zero native deps, no font assets to fetch (uses standard PDF
+fonts: Times-Roman / Helvetica / Courier-Bold). Cleanly bundles into
+@opennextjs/cloudflare without fontkit-in-Workers issues.
+
+**Design:**
+- A4 portrait, 56pt margins, brand burnt amber `#C2410C` for accents
+- Cover: "INFLUENCE ROOM" wordmark + "MEDIA KIT 2026" + amber divider,
+  large serif name (auto-shrink), tier strap-line uppercased, primary
+  handle, horizontal stats row per platform with > 0 followers
+- Rate pages: per-platform blocks in canonical order from
+  `RATE_TYPES_PER_PLATFORM`, subtotal in burnt amber, page-break when
+  next block would clip the footer
+- Closing: "Thank you for your interest. Reach out at
+  contact@influenceroom.ro" + "© 2026 Influence Room" footer
+
+**Storage path scheme:** `rate-cards/<influencer_id>/<timestamp>-rate-card.pdf`
+(timestamp = `Date.now()`). Lexical sort matches chronological order.
+
+**Cleanup:** keep 5 most-recent per influencer, drop the rest. Async,
+non-blocking — failures don't fail the response.
+
+**Smoke:**
+
+| Caz | Rezultat |
+|---|---|
+| Local generator vs SPEAK fixture (4-platform full) | 6991 bytes, header `%PDF-1.7`, FlateDecode stream ✓ |
+| Bucket created via migration 036 | `rate-cards` (public=false) ✓ |
+| Live POST on SPEAK | TODO post-deploy: open signed URL, eyeball cover + tables, verify Storage object at `rate-cards/<speak_id>/<ts>-rate-card.pdf` |
+| 6th regenerate prunes oldest | TODO post-deploy: trigger 6 generations, verify only 5 objects remain |
+| `no_rates_to_export` for empty | TODO post-deploy on a fresh influencer with no rates |
+| Path-prefix guard on GET | TODO post-deploy: try `?path=otherinfluencerid/...` → 400 invalid_path |
