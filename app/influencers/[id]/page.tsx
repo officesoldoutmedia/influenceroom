@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 import Link from 'next/link'
 import { Nav, type NavRole } from '@/app/_components/nav'
 import { PLATFORMS, type Influencer, type Tier, type ManagerSummary } from '@/lib/influencers/types'
-import { formatFollowers } from '@/lib/influencers/format'
+import { formatFollowers, formatEur } from '@/lib/influencers/format'
 import { DetailUI } from './detail-ui'
 
 export const dynamic = 'force-dynamic'
@@ -150,7 +150,7 @@ export default async function InfluencerDetailPage({
             )}
           </Section>
 
-          <Section title="Rates (RON)">
+          <Section title="Rates (EUR)">
             <div className="grid grid-cols-4 gap-4 text-sm">
               <RateBlock label="Post" value={i.rate_post} />
               <RateBlock label="Story" value={i.rate_story} />
@@ -216,7 +216,7 @@ function RateBlock({ label, value }: { label: string; value: number | null }) {
   return (
     <div className="bg-stone-50 rounded-lg p-3">
       <div className="text-xs text-stone-500 mb-1">{label}</div>
-      <div className="text-stone-900 font-medium">{value != null ? value.toLocaleString('ro-RO') : '—'}</div>
+      <div className="text-stone-900 font-medium tabular-nums">{formatEur(value)}</div>
     </div>
   )
 }

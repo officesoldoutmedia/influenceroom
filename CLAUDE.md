@@ -86,6 +86,11 @@ on demand.
 - `pnpm run typecheck` + `pnpm run lint` must pass before any commit
 - Cron handlers gate to Europe/Bucharest local time in handler body
   (DST-safe), NOT in cron schedule
+- **All monetary values are EUR.** Schema columns store as numeric without
+  currency suffix (`influencers.rate_post/story/reel/video`,
+  `campaigns.total_budget`, `campaign_influencers.agreed_fee`). Display
+  format: `formatEur()` from `lib/influencers/format.ts` — `€` prefix,
+  `ro-RO` locale grouping, no decimals.
 
 ## Constraints
 - Edge runtime is NOT supported by @opennextjs/cloudflare for API route

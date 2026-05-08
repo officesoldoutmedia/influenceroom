@@ -10,6 +10,7 @@ import {
   type JunctionStatus,
   type Performance,
 } from '@/lib/campaigns/types'
+import { formatEur } from '@/lib/influencers/format'
 
 const STATUS_BADGE: Record<JunctionStatus, string> = {
   pitched: 'bg-stone-200 text-stone-700',
@@ -134,7 +135,7 @@ export function RosterUI({
           <Stat label="Total influenceri" value={String(items.length)} />
           <Stat label="Confirmed" value={String(byStatus.get('confirmed') ?? 0)} />
           <Stat label="Published" value={String(byStatus.get('published') ?? 0)} />
-          <Stat label="Total fee (RON)" value={totalFee.toLocaleString('ro-RO')} />
+          <Stat label="Total fee" value={formatEur(totalFee)} />
         </div>
         {items.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-2 text-xs">
@@ -147,7 +148,7 @@ export function RosterUI({
                 </span>
               )
             })}
-            <span className="text-stone-500 ml-2">avg fee {avgFee.toLocaleString('ro-RO')} RON</span>
+            <span className="text-stone-500 ml-2">avg fee {formatEur(avgFee)}</span>
           </div>
         )}
       </section>
@@ -447,7 +448,7 @@ function AddModal({
             <button type="button" onClick={() => setPicked(null)} className="text-xs text-stone-500 underline">Change</button>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Agreed fee (RON)">
+            <Field label="Agreed fee (€)">
               <input type="number" min={0} value={agreedFee} onChange={(e) => setAgreedFee(e.target.value)} className={inputCls} />
             </Field>
             <Field label="Initial status">
@@ -531,7 +532,7 @@ function EditModal({
       <h2 className="text-lg font-semibold text-stone-900 mb-4">Edit {item.influencer?.name ?? 'influencer'}</h2>
       <form onSubmit={submit} className="space-y-3">
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Agreed fee (RON)">
+          <Field label="Agreed fee (€)">
             <input type="number" min={0} value={agreedFee} onChange={(e) => setAgreedFee(e.target.value)} className={inputCls} />
           </Field>
           <Field label="Status">

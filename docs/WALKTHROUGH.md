@@ -58,7 +58,7 @@ Click **Create**. Apare în tabel. Pentru a-l dezactiva (păstrează istoric, nu
 
 **Platforms** — câte un mini-form per platformă (Instagram, TikTok, YouTube, Twitch). Pentru fiecare unde influencer-ul are cont, completezi: handle, follower count, engagement rate (zecimal 0-1, ex. `0.045` = 4.5%). Lasă goale platformele pe care nu e prezent.
 
-**Rates (RON)** — câte un câmp pentru rate post / story / reel / video. Lasă gol dacă nu știi încă.
+**Rates (EUR)** — câte un câmp pentru rate post / story / reel / video, în euro. Lasă gol dacă nu știi încă.
 
 **Contact** — email, telefon, agent name + email (dacă e cazul).
 
@@ -137,7 +137,7 @@ pitched → negotiating → confirmed → content_in_review → published → pa
 **Cum adaugi un influencer pe campanie:**
 1. **+ Add influencer** (dreapta sus)
 2. Caută după nume — apar doar influencerii activi care nu sunt deja pe campania asta
-3. Click pe rezultat → completezi: agreed_fee (RON), deliverables (text liber, ex. "1 IG Reel + 3 Stories"), status inițial (default `pitched`), notes
+3. Click pe rezultat → completezi: agreed_fee (€), deliverables (text liber, ex. "1 IG Reel + 3 Stories"), status inițial (default `pitched`), notes
 4. Add
 
 **Cum schimbi statusul:** dropdown-ul "→ status" pe rând arată doar tranzițiile valide din workflow. La click pe `published` cere obligatoriu `publish_date` + `post_url` — fără ele, primești eroare. Edit-ează rândul ca să le completezi întâi.

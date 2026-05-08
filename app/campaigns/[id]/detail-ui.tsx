@@ -188,7 +188,7 @@ function EditModal({
             </Field>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Total budget (RON)">
+            <Field label="Total budget (€)">
               <input type="number" min={0} value={budget} onChange={(e) => setBudget(e.target.value)} className={inputCls} />
             </Field>
             <Field label="Deliverables count">

@@ -10,6 +10,7 @@ import {
 } from '@/lib/campaigns/types'
 import { CampaignDetailUI, type SimpleBrand, type SimpleMember } from './detail-ui'
 import { BoardUI, type TaskWithAssignee } from './board-ui'
+import { formatEur } from '@/lib/influencers/format'
 
 export const dynamic = 'force-dynamic'
 
@@ -112,7 +113,7 @@ export default async function CampaignDetailPage({
                 <p className="text-xs text-stone-500 mt-1">
                   {campaign.start_date ?? '?'} → {campaign.end_date ?? '?'}
                   {campaign.deliverables_count != null && ` · ${campaign.deliverables_count} deliverables`}
-                  {campaign.total_budget != null && ` · ${campaign.total_budget.toLocaleString('ro-RO')} RON`}
+                  {campaign.total_budget != null && ` · ${formatEur(campaign.total_budget)}`}
                 </p>
               </div>
               {canEdit && (
@@ -152,7 +153,7 @@ export default async function CampaignDetailPage({
                   {junctionsArr.length} în roster
                   {junctionConfirmed > 0 && ` · ${junctionConfirmed} confirmed`}
                   {junctionPublished > 0 && ` · ${junctionPublished} published`}
-                  {junctionTotalFee > 0 && ` · total ${junctionTotalFee.toLocaleString('ro-RO')} RON`}
+                  {junctionTotalFee > 0 && ` · total ${formatEur(junctionTotalFee)}`}
                 </p>
               </div>
               <Link

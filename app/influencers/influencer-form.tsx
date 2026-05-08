@@ -286,10 +286,10 @@ export function InfluencerFormFields({
         )
       })}
 
-      <h3 className={sectionTitle}>Rates (RON)</h3>
+      <h3 className={sectionTitle}>Rates (EUR)</h3>
       <div className="grid grid-cols-4 gap-3">
         {(['rate_post', 'rate_story', 'rate_reel', 'rate_video'] as const).map((k) => (
-          <Field key={k} label={k.replace('rate_', '')}>
+          <Field key={k} label={`${k.replace('rate_', '')} (€)`}>
             <input
               type="number"
               min={0}
