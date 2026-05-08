@@ -86,12 +86,12 @@ export default async function CampaignDetailPage({
     supabase.from('team_members').select('id, name, role').eq('active', true).order('name'),
     supabase
       .from('campaign_participants')
-      .select('*, influencer:influencers(id, name, primary_handle, tier, platforms)')
+      .select('*, influencer:influencers(id, name, tier, social_handles)')
       .eq('campaign_id', id)
       .order('added_at', { ascending: true }),
     supabase
       .from('influencers')
-      .select('id, name, primary_handle, platforms')
+      .select('id, name, social_handles')
       .eq('status', 'active')
       .order('name'),
     supabase
@@ -175,8 +175,7 @@ export default async function CampaignDetailPage({
                 influencers={(activeInfluencers ?? []) as Array<{
                   id: string
                   name: string
-                  primary_handle: string | null
-                  platforms: Record<string, { handle?: string; followers?: number }>
+                  social_handles: Record<string, { handle: string; url: string; followers: number }>
                 }>}
                 canEdit={canEdit}
               />

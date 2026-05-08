@@ -3,7 +3,18 @@ import { redirect, notFound } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
 import Link from 'next/link'
 import { Nav, type NavRole } from '@/app/_components/nav'
-import { PLATFORMS, TIER_BADGE, TIER_LABELS_LONG, type Influencer, type ManagerSummary } from '@/lib/influencers/types'
+import {
+  PLATFORMS,
+  PLATFORM_LABEL,
+  TIER_BADGE,
+  TIER_LABELS_LONG,
+  TIER_LABELS_FULL,
+  primaryHandle,
+  maxFollowers,
+  type Influencer,
+  type ManagerSummary,
+  type Platform,
+} from '@/lib/influencers/types'
 import { formatFollowers, formatEur } from '@/lib/influencers/format'
 import { DetailUI } from './detail-ui'
 
@@ -62,11 +73,24 @@ export default async function InfluencerDetailPage({
                 </div>
                 <div>
                   <h1 className="text-2xl font-semibold text-stone-900">{i.name}</h1>
-                  <div className="flex items-center gap-2 mt-1">
-                    {i.primary_handle && <span className="text-sm text-stone-600">{i.primary_handle}</span>}
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    {(() => {
+                      const ph = primaryHandle(i.social_handles ?? {})
+                      return ph ? (
+                        <span className="text-sm text-stone-600">@{ph.entry.handle}</span>
+                      ) : null
+                    })()}
                     {i.tier && (
-                      <span className={`text-[10px] uppercase tracking-wide font-medium px-2 py-0.5 rounded-full ${TIER_BADGE[i.tier]}`}>
+                      <span
+                        title={TIER_LABELS_FULL[i.tier]}
+                        className={`text-[10px] uppercase tracking-wide font-medium px-2 py-0.5 rounded-full ${TIER_BADGE[i.tier]}`}
+                      >
                         {TIER_LABELS_LONG[i.tier]}
+                      </span>
+                    )}
+                    {i.tier_manual_override && (
+                      <span className="text-[10px] uppercase tracking-[0.06em] text-stone-400">
+                        manual
                       </span>
                     )}
                     <span className={`text-[10px] uppercase tracking-wide ${i.status === 'active' ? 'text-emerald-600' : i.status === 'blacklist' ? 'text-rose-600' : 'text-stone-400'}`}>
@@ -110,35 +134,44 @@ export default async function InfluencerDetailPage({
             )}
           </div>
 
-          <Section title="Platforms">
-            {Object.keys(i.platforms ?? {}).length === 0 ? (
-              <p className="text-sm text-stone-400">No platforms recorded.</p>
+          <Section title="Social media">
+            {Object.keys(i.social_handles ?? {}).length === 0 ? (
+              <p className="text-sm text-stone-400">Niciun handle adăugat.</p>
             ) : (
-              <table className="w-full text-sm">
-                <thead className="text-stone-500">
-                  <tr className="text-left">
-                    <th className="pb-2 font-medium">Platform</th>
-                    <th className="pb-2 font-medium">Handle</th>
-                    <th className="pb-2 font-medium text-right">Followers</th>
-                    <th className="pb-2 font-medium text-right">Engagement</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {PLATFORMS.filter((p) => i.platforms?.[p]).map((p) => {
-                    const stats = i.platforms[p]!
-                    return (
-                      <tr key={p} className="border-t border-stone-100">
-                        <td className="py-2 capitalize">{p}</td>
-                        <td className="py-2 text-stone-600">{stats.handle ?? '—'}</td>
-                        <td className="py-2 text-stone-600 text-right">{formatFollowers(stats.followers)}</td>
-                        <td className="py-2 text-stone-600 text-right">
-                          {stats.engagement_rate != null ? `${(stats.engagement_rate * 100).toFixed(1)}%` : '—'}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {PLATFORMS.filter((p) => i.social_handles?.[p]).map((p) => {
+                  const e = i.social_handles[p as Platform]!
+                  return (
+                    <li key={p}>
+                      <a
+                        href={e.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block bg-stone-50 hover:bg-brand-50/40 hover:border-brand-300 border border-stone-200 rounded-lg p-3 transition-colors"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-stone-500">
+                            {PLATFORM_LABEL[p as Platform]}
+                          </span>
+                          <span className="text-[11px] text-brand-700">Open ↗</span>
+                        </div>
+                        <div className="text-sm text-stone-900 mt-1 truncate">@{e.handle}</div>
+                        <div className="text-[12px] text-stone-500 tabular-nums mt-0.5">
+                          {formatFollowers(e.followers)} followers
+                        </div>
+                      </a>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+            {i.tier && (
+              <p className="text-[12px] text-stone-500 mt-3">
+                Tier: <strong className="text-stone-700">{TIER_LABELS_FULL[i.tier]}</strong>
+                {i.tier_manual_override
+                  ? ' · setat manual'
+                  : ` · auto din max ${formatFollowers(maxFollowers(i.social_handles ?? {}))} followers`}
+              </p>
             )}
           </Section>
 

@@ -16,8 +16,7 @@ import { Avatar, Button, EmptyState } from '@/lib/ui'
 type InfluencerOption = {
   id: string
   name: string
-  primary_handle: string | null
-  platforms: Record<string, { handle?: string; followers?: number }>
+  social_handles: Record<string, { handle: string; url: string; followers: number }>
 }
 
 const STATUS_BADGE: Record<ParticipantStatus, string> = {
@@ -237,7 +236,7 @@ function AddModal({
     const next: Record<string, string> = { ...handleByPlatform }
     for (const p of pickedPlatforms) {
       if (next[p] === undefined) {
-        next[p] = selectedInf.platforms?.[p]?.handle ?? ''
+        next[p] = selectedInf.social_handles?.[p]?.handle ?? ''
       }
     }
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -266,7 +265,7 @@ function AddModal({
     const created: CampaignParticipantJoined[] = []
     let firstError: string | null = null
     for (const p of pickedPlatforms) {
-      const handle = handleByPlatform[p]?.trim() || selectedInf?.platforms?.[p]?.handle || ''
+      const handle = handleByPlatform[p]?.trim() || selectedInf?.social_handles?.[p]?.handle || ''
       if (!handle) {
         firstError = `Lipsește handle pentru ${PLATFORM_LABEL[p]}`
         break
@@ -380,7 +379,7 @@ function AddModal({
                 </div>
                 <div className="space-y-2">
                   {SOCIAL_PLATFORMS.map((p) => {
-                    const has = !!selectedInf.platforms?.[p]
+                    const has = !!selectedInf.social_handles?.[p]
                     const checked = pickedPlatforms.has(p)
                     return (
                       <div

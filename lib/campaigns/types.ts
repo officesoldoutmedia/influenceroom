@@ -112,9 +112,8 @@ export type CampaignParticipant = {
 export type ParticipantInfluencerRef = {
   id: string
   name: string
-  primary_handle: string | null
   tier: string | null
-  platforms: Record<string, { handle?: string; followers?: number; engagement_rate?: number }>
+  social_handles: Record<string, { handle: string; url: string; followers: number }>
 }
 
 export type CampaignParticipantJoined = CampaignParticipant & {

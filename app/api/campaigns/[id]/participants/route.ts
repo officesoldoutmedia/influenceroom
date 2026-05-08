@@ -19,7 +19,7 @@ function admin() {
 
 const PARTICIPANT_SELECT = `
   *,
-  influencer:influencers(id, name, primary_handle, tier, platforms)
+  influencer:influencers(id, name, tier, social_handles)
 `
 
 export async function GET(

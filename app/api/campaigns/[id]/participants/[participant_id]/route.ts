@@ -19,7 +19,7 @@ const REQUIRES_PUBLISH = new Set<ParticipantStatus>(['published', 'paid'])
 
 const PARTICIPANT_SELECT = `
   *,
-  influencer:influencers(id, name, primary_handle, tier, platforms)
+  influencer:influencers(id, name, tier, social_handles)
 `
 
 type PatchBody = {
