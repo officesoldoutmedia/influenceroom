@@ -114,6 +114,32 @@ export function NotificationsUI({
     }
   }
 
+  async function runDeadlineScheduler() {
+    const secret = prompt('CRON_SECRET (din .env.local — local only):')
+    if (!secret) return
+    const res = await fetch('/api/cron/deadline-scheduler', {
+      method: 'POST',
+      headers: { 'x-cron-secret': secret },
+    })
+    if (res.ok) {
+      const data = (await res.json()) as {
+        deliverables_processed?: number
+        milestones_processed?: number
+        reminders_sent?: number
+        reminders_skipped?: number
+        push_sent?: number
+        push_failed?: number
+        errors?: string[]
+      }
+      alert(
+        `Processed deliverables=${data.deliverables_processed} milestones=${data.milestones_processed} · reminders sent=${data.reminders_sent} skipped (already sent)=${data.reminders_skipped} · push sent=${data.push_sent} failed=${data.push_failed}${(data.errors?.length ?? 0) > 0 ? '\n\nErori:\n' + (data.errors ?? []).join('\n') : ''}`,
+      )
+      router.refresh()
+    } else {
+      alert(`Eroare ${res.status}: ${await res.text()}`)
+    }
+  }
+
   async function resendFailed(n: NotificationRow) {
     const res = await fetch(`/api/admin/notifications/${n.id}/resend`, { method: 'POST' })
     if (res.ok) {
@@ -151,6 +177,9 @@ export function NotificationsUI({
             </select>
             <button type="button" onClick={runWorker} className="text-xs px-3 py-1 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700">
               Run worker now
+            </button>
+            <button type="button" onClick={runDeadlineScheduler} className="text-xs px-3 py-1 rounded-lg bg-amber-600 text-white hover:bg-amber-700">
+              Run scheduler now
             </button>
           </div>
         </header>

@@ -24,7 +24,7 @@
 | 3c | Social handles + tier auto-calc + filter labels | ✅ |
 | 4 | Multi-account junction | ~45 min |
 | 5 | RLS refactor — account scoping pe influencers + campaigns + tasks; owner bypass | ~1.5h |
-| 6 | Email obligatoriu pe influencers + sistem notificări deadline (necesită Workers Paid + cron) | ~1.5h |
+| 6 | Sistem notificări deadline (account 7/3/1/post · influencer 3/1/post) | ✅ |
 | 7 | Frontend polish — design system applied to all pages + mobile/PWA polish | ✅ partial — campaign board mobile + per-page modals → <Dialog> deferred |
 
 ## Dependencies critice

@@ -10,9 +10,14 @@ directory = ".open-next/assets"
 binding = "ASSETS"
 
 [triggers]
-# Drains notifications.status='queued' every 5 min via processQueueBatch({limit:50}).
-# Auto-flush on /api/admin/broadcast still handles broadcasts instantly via
-# ctx.waitUntil; this cron catches the other 5 notification types
-# (task_assigned, task_status_changed, deadline_reminder, daily_digest,
-# campaign_started) which enqueue without an explicit flush call.
-crons = ["*/5 * * * *"]
+# */5 * * * *  drain notifications.status='queued' via processQueueBatch.
+#              Auto-flush on /api/admin/broadcast still handles broadcasts
+#              instantly via ctx.waitUntil; this cron catches the other 5
+#              notification types (task_assigned, task_status_changed,
+#              deadline_reminder, daily_digest, campaign_started) which
+#              enqueue without an explicit flush call.
+# 0 5 * * *    daily deadline scheduler — 05:00 UTC = 08:00 Bucharest summer
+#              (07:00 winter; deliberately a bit before the team starts the
+#              day so reminders for today's deadlines are already in inbox).
+#              Routes to /api/cron/deadline-scheduler in worker-entry.mjs.
+crons = ["*/5 * * * *", "0 5 * * *"]

@@ -55,7 +55,43 @@ LIVE:
 
 `/admin/notifications` → "Run worker now" still exists as a manual override
 (prompts for CRON_SECRET) — useful if cron is paused or you want to flush
-on demand.
+on demand. The same page also has "Run scheduler now" which fires the
+deadline scheduler manually (see Deadline notification model below).
+
+## Deadline notification model (Sprint 9 Faza 6)
+Daily cron `0 5 * * *` (05:00 UTC = 08:00 Bucharest summer / 07:00 winter)
+fires `/api/cron/deadline-scheduler`, which calls
+`scheduleDeadlineNotifications()` in `lib/notifications/deadline-scheduler.ts`.
+
+For each of the 4 reminder windows the scheduler scans the relevant table:
+- **`7d`** — post_date / due_date is exactly today + 7 days
+- **`3d`** — exactly today + 3 days
+- **`1d`** — exactly today + 1 day (= "tomorrow")
+- **`overdue`** — strictly before today (and not yet completed/published/cancelled)
+
+Recipients (Opțiunea A):
+| Resource | Account manager (campaign.owner_id) | Influencer (participant.influencer.contact_email) |
+|---|---|---|
+| `campaign_deliverables` (post_date) | 7d / 3d / 1d / overdue | 3d / 1d / overdue (skipped if ad-hoc or email null) |
+| `campaign_milestones` (due_date) | 7d / 3d / 1d / overdue | not notified (milestones are internal) |
+
+**Idempotency** is enforced by the UNIQUE index on
+`deadline_reminder_log(resource_type, resource_id, reminder_kind,
+recipient_type, recipient_email)` — re-running the scheduler in the same
+day is a no-op for already-sent reminders. Each successful send writes a
+log row + enqueues a notification row + (for account managers with active
+push subs) fans out a web-push best-effort.
+
+The recipient's `team_members.notification_prefs.deadline_reminder` flag
+gates email + push; missing prefs default to opt-in. (Influencers don't
+have prefs because they aren't team members; they're notified whenever a
+contact_email is on file.)
+
+Email templates: `lib/email/templates/deadline-reminder-deliverable.ts`
+and `deadline-reminder-milestone.ts` — Romanian, HTML-escape user input,
+4 subject variants per kind. Renders inline (not via `renderEmail`)
+because the scheduler is a backend pipeline that builds + inserts the
+notification row directly.
 
 ## Pending pre-public-launch (Stefan-controlled, not blocking beta)
 - **Resend account + verified sender domain** — DONE. `notify@influenceroom.ro`
