@@ -13,7 +13,7 @@
 // most common moves (right-aligned text, accent rule, etc.) so the page
 // templates read like a recipe.
 
-import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb } from 'pdf-lib'
+import { PDFDocument, PDFFont, PDFImage, PDFPage, StandardFonts, rgb } from 'pdf-lib'
 import {
   PLATFORMS,
   PLATFORM_LABEL,
@@ -30,6 +30,25 @@ import {
   hasAnyRate,
   totalRatesForPlatform,
 } from './types'
+import { WORDMARK_ASPECT_RATIO, WORDMARK_PNG_BASE64 } from './wordmark-asset'
+
+// Wordmark PNG sizes in PDF points. Width chosen to match the visual footprint
+// the previous text wordmark occupied at 14pt / 8pt Times-Bold. Height derived
+// from the source aspect (11.8485 : 1) so the rasterised letters stay
+// proportional.
+const WORDMARK_COVER_WIDTH = 120
+const WORDMARK_COVER_HEIGHT = WORDMARK_COVER_WIDTH / WORDMARK_ASPECT_RATIO
+const WORDMARK_FOOTER_WIDTH = 70
+const WORDMARK_FOOTER_HEIGHT = WORDMARK_FOOTER_WIDTH / WORDMARK_ASPECT_RATIO
+
+function decodeWordmarkPng(): Uint8Array {
+  // Atob is available in Node 16+ and Cloudflare Workers; using it keeps this
+  // path runtime-agnostic (no Buffer reliance).
+  const bin = atob(WORDMARK_PNG_BASE64)
+  const bytes = new Uint8Array(bin.length)
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+  return bytes
+}
 
 // Brand palette — stays inline so the generator has zero project-config deps.
 // (#C2410C burnt amber is the locked brand-700 from the project memory.)
@@ -52,6 +71,10 @@ type Fonts = {
   sansBold: PDFFont
   mono: PDFFont
 }
+
+// Brand assets bundle — fonts + the embedded wordmark PNG, threaded through
+// every page renderer so each page can drop the logo without re-embedding.
+type Assets = Fonts & { wordmark: PDFImage }
 
 export class NoRatesError extends Error {
   constructor() {
@@ -78,9 +101,11 @@ export async function generateRateCardPDF(influencer: Influencer): Promise<Uint8
     sansBold: await doc.embedFont(StandardFonts.HelveticaBold),
     mono: await doc.embedFont(StandardFonts.CourierBold),
   }
+  const wordmark = await doc.embedPng(decodeWordmarkPng())
+  const assets: Assets = { ...fonts, wordmark }
 
-  drawCoverPage(doc, fonts, influencer)
-  drawRatePages(doc, fonts, influencer)
+  drawCoverPage(doc, assets, influencer)
+  drawRatePages(doc, assets, influencer)
 
   return doc.save()
 }
@@ -93,44 +118,45 @@ export function getRateCardStoragePath(influencerId: string, timestamp: number):
 // Page renderers
 // ────────────────────────────────────────────────────────────────────────────
 
-function drawCoverPage(doc: PDFDocument, fonts: Fonts, inf: Influencer): void {
+function drawCoverPage(doc: PDFDocument, assets: Assets, inf: Influencer): void {
   const page = doc.addPage([PAGE.width, PAGE.height])
 
   // ── Header band ──────────────────────────────────────────────────────
-  const wordmarkY = PAGE.height - MARGIN.y
-  drawText(page, 'INFLUENCE ROOM', {
+  // Wordmark image (PNG embed) anchors top-left; baseline of MEDIA KIT label
+  // aligns with the visual center of the wordmark for an even header line.
+  const wordmarkBottom = PAGE.height - MARGIN.y - WORDMARK_COVER_HEIGHT
+  page.drawImage(assets.wordmark, {
     x: MARGIN.x,
-    y: wordmarkY,
-    font: fonts.serifBold,
-    size: 14,
-    color: COLORS.obsidian,
-    tracking: 1.2,
+    y: wordmarkBottom,
+    width: WORDMARK_COVER_WIDTH,
+    height: WORDMARK_COVER_HEIGHT,
   })
   drawTextRight(page, 'MEDIA KIT 2026', {
     x: PAGE.width - MARGIN.x,
-    y: wordmarkY,
-    font: fonts.sansBold,
+    y: wordmarkBottom + (WORDMARK_COVER_HEIGHT - 9) / 2 + 1,
+    font: assets.sansBold,
     size: 9,
     color: COLORS.textFaint,
     tracking: 1.5,
   })
 
-  // Brand divider
+  // Brand divider — sits below the wordmark with a small breathing gap.
+  const dividerY = wordmarkBottom - 8
   page.drawLine({
-    start: { x: MARGIN.x, y: wordmarkY - 14 },
-    end: { x: PAGE.width - MARGIN.x, y: wordmarkY - 14 },
+    start: { x: MARGIN.x, y: dividerY },
+    end: { x: PAGE.width - MARGIN.x, y: dividerY },
     thickness: 1,
     color: COLORS.brand,
   })
 
   // ── Center identity block ────────────────────────────────────────────
   const nameY = PAGE.height * 0.62
-  const nameSize = pickNameSize(inf.name, fonts.serif)
-  const nameWidth = fonts.serif.widthOfTextAtSize(inf.name, nameSize)
+  const nameSize = pickNameSize(inf.name, assets.serif)
+  const nameWidth = assets.serif.widthOfTextAtSize(inf.name, nameSize)
   drawText(page, inf.name, {
     x: (PAGE.width - nameWidth) / 2,
     y: nameY,
-    font: fonts.serif,
+    font: assets.serif,
     size: nameSize,
     color: COLORS.obsidian,
   })
@@ -138,11 +164,11 @@ function drawCoverPage(doc: PDFDocument, fonts: Fonts, inf: Influencer): void {
   // Tier strap-line below name
   if (inf.tier) {
     const tierLabel = TIER_LABELS_RANGE[inf.tier].toUpperCase()
-    const tierWidth = fonts.sansBold.widthOfTextAtSize(tierLabel, 11)
+    const tierWidth = assets.sansBold.widthOfTextAtSize(tierLabel, 11)
     drawText(page, tierLabel, {
       x: (PAGE.width - tierWidth) / 2,
       y: nameY - 24,
-      font: fonts.sansBold,
+      font: assets.sansBold,
       size: 11,
       color: COLORS.brand,
       tracking: 2,
@@ -153,26 +179,26 @@ function drawCoverPage(doc: PDFDocument, fonts: Fonts, inf: Influencer): void {
   const ph = primaryHandle(inf.social_handles ?? {})
   if (ph) {
     const handleStr = `@${ph.entry.handle} · ${PLATFORM_LABEL[ph.platform]}`
-    const handleWidth = fonts.sans.widthOfTextAtSize(handleStr, 10)
+    const handleWidth = assets.sans.widthOfTextAtSize(handleStr, 10)
     drawText(page, handleStr, {
       x: (PAGE.width - handleWidth) / 2,
       y: nameY - 42,
-      font: fonts.sans,
+      font: assets.sans,
       size: 10,
       color: COLORS.textMuted,
     })
   }
 
   // ── Stats grid ───────────────────────────────────────────────────────
-  drawStatsRow(page, fonts, inf, PAGE.height * 0.35)
+  drawStatsRow(page, assets, inf, PAGE.height * 0.35)
 
   // ── Footer ───────────────────────────────────────────────────────────
-  drawCoverFooter(page, fonts)
+  drawCoverFooter(page, assets)
 }
 
-function drawRatePages(doc: PDFDocument, fonts: Fonts, inf: Influencer): void {
+function drawRatePages(doc: PDFDocument, assets: Assets, inf: Influencer): void {
   let page = doc.addPage([PAGE.width, PAGE.height])
-  let cursor = drawSimpleHeader(page, fonts, 'RATE CARDS', inf.name)
+  let cursor = drawSimpleHeader(page, assets, 'RATE CARDS', inf.name)
 
   for (const platform of PLATFORMS) {
     const card = inf.rate_cards?.[platform]
@@ -186,29 +212,30 @@ function drawRatePages(doc: PDFDocument, fonts: Fonts, inf: Influencer): void {
     ).length
     const blockHeight = 28 + rowCount * 18 + 36
     if (cursor - blockHeight < MARGIN.y + 60) {
-      drawPageFooter(page, fonts)
+      drawPageFooter(page, assets)
       page = doc.addPage([PAGE.width, PAGE.height])
-      cursor = drawSimpleHeader(page, fonts, 'RATE CARDS', inf.name)
+      cursor = drawSimpleHeader(page, assets, 'RATE CARDS', inf.name)
     }
 
-    cursor = drawPlatformRateBlock(page, fonts, platform, card, cursor)
+    cursor = drawPlatformRateBlock(page, assets, platform, card, cursor)
   }
 
   // Final page: closing line + page-footer.
   if (cursor - 80 < MARGIN.y + 80) {
-    drawPageFooter(page, fonts)
+    drawPageFooter(page, assets)
     page = doc.addPage([PAGE.width, PAGE.height])
-    cursor = drawSimpleHeader(page, fonts, 'CONTACT', inf.name)
+    cursor = drawSimpleHeader(page, assets, 'CONTACT', inf.name)
   }
-  drawClosingLine(page, fonts, cursor - 30)
-  drawPageFooter(page, fonts)
+  drawClosingLine(page, assets, cursor - 30)
+  drawPageFooter(page, assets)
 }
 
 // ────────────────────────────────────────────────────────────────────────────
 // Block renderers
 // ────────────────────────────────────────────────────────────────────────────
 
-function drawStatsRow(page: PDFPage, fonts: Fonts, inf: Influencer, y: number): void {
+function drawStatsRow(page: PDFPage, assets: Assets, inf: Influencer, y: number): void {
+  const fonts = assets
   const stats = PLATFORMS.map((p) => {
     const entry = inf.social_handles?.[p]
     return entry && entry.followers > 0
@@ -252,11 +279,12 @@ function drawStatsRow(page: PDFPage, fonts: Fonts, inf: Influencer, y: number): 
 
 function drawPlatformRateBlock(
   page: PDFPage,
-  fonts: Fonts,
+  assets: Assets,
   platform: Platform,
   card: Partial<Record<string, number>>,
   yStart: number,
 ): number {
+  const fonts = assets
   const title = PLATFORM_LABEL[platform].toUpperCase()
   drawText(page, title, {
     x: MARGIN.x,
@@ -323,33 +351,44 @@ function drawPlatformRateBlock(
   return y - 26 // gap before the next platform block
 }
 
-function drawSimpleHeader(page: PDFPage, fonts: Fonts, title: string, name: string): number {
-  const y = PAGE.height - MARGIN.y
+function drawSimpleHeader(page: PDFPage, assets: Assets, title: string, name: string): number {
+  // Inner pages use a smaller, embossed-style header: the wordmark image
+  // anchors top-left so every page is visibly branded, with the section
+  // title (e.g. RATE CARDS) sitting directly under it.
+  const wordmarkBottom = PAGE.height - MARGIN.y - WORDMARK_FOOTER_HEIGHT
+  page.drawImage(assets.wordmark, {
+    x: MARGIN.x,
+    y: wordmarkBottom,
+    width: WORDMARK_FOOTER_WIDTH,
+    height: WORDMARK_FOOTER_HEIGHT,
+  })
+  drawTextRight(page, name, {
+    x: PAGE.width - MARGIN.x,
+    y: wordmarkBottom + (WORDMARK_FOOTER_HEIGHT - 9) / 2 + 1,
+    font: assets.sans,
+    size: 9,
+    color: COLORS.textMuted,
+  })
+
+  const titleY = wordmarkBottom - 16
   drawText(page, title, {
     x: MARGIN.x,
-    y,
-    font: fonts.serifBold,
+    y: titleY,
+    font: assets.serifBold,
     size: 14,
     color: COLORS.obsidian,
     tracking: 1.2,
   })
-  drawTextRight(page, name, {
-    x: PAGE.width - MARGIN.x,
-    y,
-    font: fonts.sans,
-    size: 10,
-    color: COLORS.textMuted,
-  })
   page.drawLine({
-    start: { x: MARGIN.x, y: y - 10 },
-    end: { x: PAGE.width - MARGIN.x, y: y - 10 },
+    start: { x: MARGIN.x, y: titleY - 8 },
+    end: { x: PAGE.width - MARGIN.x, y: titleY - 8 },
     thickness: 0.5,
     color: COLORS.rule,
   })
-  return y - 36
+  return titleY - 30
 }
 
-function drawCoverFooter(page: PDFPage, fonts: Fonts): void {
+function drawCoverFooter(page: PDFPage, assets: Assets): void {
   const y = MARGIN.y + 6
   page.drawLine({
     start: { x: MARGIN.x, y: y + 22 },
@@ -360,50 +399,53 @@ function drawCoverFooter(page: PDFPage, fonts: Fonts): void {
   drawText(page, 'contact@influenceroom.ro', {
     x: MARGIN.x,
     y,
-    font: fonts.sans,
+    font: assets.sans,
     size: 10,
     color: COLORS.textMuted,
   })
   drawTextRight(page, '© 2026', {
     x: PAGE.width - MARGIN.x,
     y,
-    font: fonts.sans,
+    font: assets.sans,
     size: 10,
     color: COLORS.textFaint,
   })
 }
 
-function drawClosingLine(page: PDFPage, fonts: Fonts, y: number): void {
+function drawClosingLine(page: PDFPage, assets: Assets, y: number): void {
   drawText(page, 'Thank you for your interest.', {
     x: MARGIN.x,
     y,
-    font: fonts.serifBold,
+    font: assets.serifBold,
     size: 14,
     color: COLORS.obsidian,
   })
   drawText(page, 'Reach out at contact@influenceroom.ro', {
     x: MARGIN.x,
     y: y - 18,
-    font: fonts.sans,
+    font: assets.sans,
     size: 11,
     color: COLORS.textMuted,
   })
 }
 
-function drawPageFooter(page: PDFPage, fonts: Fonts): void {
+function drawPageFooter(page: PDFPage, assets: Assets): void {
   const y = MARGIN.y - 14
-  drawText(page, 'INFLUENCE ROOM', {
+  // Inline wordmark image as the footer mark; copyright sits flush right.
+  // The image baseline sits a touch above the copyright baseline so the two
+  // optically align even though the wordmark glyphs are taller than 8pt text.
+  const footerHeight = WORDMARK_FOOTER_HEIGHT * 0.75
+  const footerWidth = WORDMARK_FOOTER_WIDTH * 0.75
+  page.drawImage(assets.wordmark, {
     x: MARGIN.x,
-    y,
-    font: fonts.serifBold,
-    size: 8,
-    color: COLORS.textFaint,
-    tracking: 1.5,
+    y: y - 1,
+    width: footerWidth,
+    height: footerHeight,
   })
   drawTextRight(page, '© 2026 Influence Room', {
     x: PAGE.width - MARGIN.x,
-    y,
-    font: fonts.sans,
+    y: y + (footerHeight - 8) / 2,
+    font: assets.sans,
     size: 8,
     color: COLORS.textFaint,
   })
