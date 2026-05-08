@@ -306,10 +306,17 @@ export async function scheduleDeadlineNotifications(): Promise<SchedulerResult> 
       .not('post_date', 'is', null)
       .not('status', 'in', '(published,cancelled)')
 
+    // The '1d' window catches both `today + 1` (deadline tomorrow) and
+    // `today` (deadline today) so a deliverable due today still gets a
+    // morning reminder. Subject text below differentiates "AZI" vs
+    // "mâine"; the reminder_kind in the log stays '1d' for both so
+    // idempotency carries across the two days for the same row.
     const { data, error } =
       win.kind === 'overdue'
         ? await baseSelect.lt('post_date', today)
-        : await baseSelect.eq('post_date', win.target)
+        : win.kind === '1d'
+          ? await baseSelect.in('post_date', [today, win.target])
+          : await baseSelect.eq('post_date', win.target)
 
     if (error) {
       errors.push(`deliverables[${win.kind}]: ${error.message}`)
@@ -325,6 +332,9 @@ export async function scheduleDeadlineNotifications(): Promise<SchedulerResult> 
         row.type === 'custom' ? (row.custom_type_label ?? 'Custom') : (DELIVERABLE_TYPE_LABEL[row.type] ?? row.type)
       const statusLabel = DELIVERABLE_STATUS_LABEL[row.status] ?? row.status
       const participantLabel = row.participant.influencer?.name ?? row.participant.account_handle
+      // Only meaningful for the '1d' window — drives "AZI" vs "mâine" subject
+      // copy when the deadline is today instead of tomorrow.
+      const isToday = win.kind === '1d' && row.post_date === today
 
       // ── Account manager recipient ──
       const owner = campaign.owner
@@ -348,6 +358,7 @@ export async function scheduleDeadlineNotifications(): Promise<SchedulerResult> 
           collabHandles: row.collab_handles ?? [],
           hashtags: row.hashtags ?? [],
           campaignUrl: `${APP_URL}/campaigns/${campaign.id}?tab=deliverables`,
+          isToday,
         })
         const result = await logAndEnqueue(supabase, {
           resourceType: 'deliverable',
@@ -398,6 +409,7 @@ export async function scheduleDeadlineNotifications(): Promise<SchedulerResult> 
           collabHandles: row.collab_handles ?? [],
           hashtags: row.hashtags ?? [],
           campaignUrl: `${APP_URL}/campaigns/${campaign.id}?tab=deliverables`,
+          isToday,
         })
         const result = await logAndEnqueue(supabase, {
           resourceType: 'deliverable',
@@ -434,7 +446,9 @@ export async function scheduleDeadlineNotifications(): Promise<SchedulerResult> 
     const { data, error } =
       win.kind === 'overdue'
         ? await baseSelect.lt('due_date', today)
-        : await baseSelect.eq('due_date', win.target)
+        : win.kind === '1d'
+          ? await baseSelect.in('due_date', [today, win.target])
+          : await baseSelect.eq('due_date', win.target)
 
     if (error) {
       errors.push(`milestones[${win.kind}]: ${error.message}`)
@@ -453,6 +467,10 @@ export async function scheduleDeadlineNotifications(): Promise<SchedulerResult> 
           ? (row.responsible_name ?? 'Altcineva')
           : (MILESTONE_RESPONSIBLE_LABEL[row.responsible] ?? row.responsible)
 
+      // Only meaningful for the '1d' window — drives "AZI" vs "mâine" subject
+      // copy when the milestone is due today instead of tomorrow.
+      const isToday = win.kind === '1d' && row.due_date === today
+
       const owner = campaign.owner
       if (
         owner?.email &&
@@ -468,6 +486,7 @@ export async function scheduleDeadlineNotifications(): Promise<SchedulerResult> 
           responsibleLabel,
           notes: row.notes,
           campaignUrl: `${APP_URL}/campaigns/${campaign.id}?tab=milestones`,
+          isToday,
         })
         const result = await logAndEnqueue(supabase, {
           resourceType: 'milestone',

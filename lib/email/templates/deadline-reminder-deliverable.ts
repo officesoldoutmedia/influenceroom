@@ -22,20 +22,40 @@ export type DeliverableReminderParams = {
   collabHandles: string[]
   hashtags: string[]
   campaignUrl: string
+  // True only when kind='1d' AND post_date == today. Drives "AZI" vs "mâine"
+  // copy in subject + lead. reminder_kind in the dedupe log stays '1d' for both
+  // days so idempotency carries across them for the same deliverable.
+  isToday?: boolean
 }
 
-const SUBJECT_BY_KIND: Record<DeliverableDeadlineKind, (label: string) => string> = {
-  '7d': (l) => `Reminder: livrabil cu deadline în 7 zile — ${l}`,
-  '3d': (l) => `Atenție: livrabil cu deadline în 3 zile — ${l}`,
-  '1d': (l) => `URGENT: livrabil cu deadline mâine — ${l}`,
-  overdue: (l) => `DEPĂȘIT: livrabil cu deadline trecut — ${l}`,
+function subjectFor(kind: DeliverableDeadlineKind, label: string, isToday: boolean): string {
+  switch (kind) {
+    case '7d':
+      return `Reminder: livrabil cu deadline în 7 zile — ${label}`
+    case '3d':
+      return `Atenție: livrabil cu deadline în 3 zile — ${label}`
+    case '1d':
+      return isToday
+        ? `URGENT: livrabil cu deadline AZI — ${label}`
+        : `URGENT: livrabil cu deadline mâine — ${label}`
+    case 'overdue':
+      return `DEPĂȘIT: livrabil cu deadline trecut — ${label}`
+  }
 }
 
-const LEAD_BY_KIND: Record<DeliverableDeadlineKind, string> = {
-  '7d': 'Reminder: ai un livrabil cu deadline în <strong>7 zile</strong>.',
-  '3d': 'Atenție: ai un livrabil cu deadline în <strong>3 zile</strong>.',
-  '1d': 'URGENT: ai un livrabil cu deadline <strong>mâine</strong>.',
-  overdue: 'Acest livrabil are deadline <strong>depășit</strong> — necesită acțiune.',
+function leadFor(kind: DeliverableDeadlineKind, isToday: boolean): string {
+  switch (kind) {
+    case '7d':
+      return 'Reminder: ai un livrabil cu deadline în <strong>7 zile</strong>.'
+    case '3d':
+      return 'Atenție: ai un livrabil cu deadline în <strong>3 zile</strong>.'
+    case '1d':
+      return isToday
+        ? 'URGENT: ai un livrabil cu deadline <strong>AZI</strong>.'
+        : 'URGENT: ai un livrabil cu deadline <strong>mâine</strong>.'
+    case 'overdue':
+      return 'Acest livrabil are deadline <strong>depășit</strong> — necesită acțiune.'
+  }
 }
 
 function chips(items: string[]): string {
@@ -50,7 +70,9 @@ function chips(items: string[]): string {
 
 export function deliverableDeadlineReminder(p: DeliverableReminderParams) {
   const label = `${p.quantity}× ${p.typeLabel}`
-  const subject = SUBJECT_BY_KIND[p.kind](`${label} (${p.campaignName})`)
+  const isToday = p.isToday === true
+  const subject = subjectFor(p.kind, `${label} (${p.campaignName})`, isToday)
+  const lead = leadFor(p.kind, isToday)
 
   const showInfluencerSpecific = p.recipientType === 'influencer'
   const briefBlock = p.brief
@@ -71,7 +93,7 @@ export function deliverableDeadlineReminder(p: DeliverableReminderParams) {
 
   const html = layout(`
     <p>Salut <strong>${esc(p.recipientName)}</strong>,</p>
-    <p>${LEAD_BY_KIND[p.kind]}</p>
+    <p>${lead}</p>
     ${card(`
       <div style="font-weight:600;color:#1c1917;margin-bottom:6px;">${esc(label)}</div>
       <div style="color:#57534e;font-size:13px;">Campania: <strong>${esc(p.campaignName)}</strong> · Brand: ${esc(p.brandName)}</div>
@@ -88,7 +110,7 @@ export function deliverableDeadlineReminder(p: DeliverableReminderParams) {
   const textParts = [
     `Salut ${p.recipientName},`,
     '',
-    LEAD_BY_KIND[p.kind].replace(/<[^>]+>/g, ''),
+    lead.replace(/<[^>]+>/g, ''),
     '',
     `${label}`,
     `Campania: ${p.campaignName} · Brand: ${p.brandName}`,

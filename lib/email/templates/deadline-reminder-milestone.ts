@@ -14,24 +14,47 @@ export type MilestoneReminderParams = {
   responsibleLabel: string
   notes: string | null
   campaignUrl: string
+  // True only when kind='1d' AND due_date == today. Drives "AZI" vs "mâine"
+  // copy in subject + lead. reminder_kind in the dedupe log stays '1d' so a
+  // milestone due today doesn't get re-sent if it was already pinged yesterday
+  // as the tomorrow-warning.
+  isToday?: boolean
 }
 
-const SUBJECT_BY_KIND: Record<MilestoneDeadlineKind, (label: string) => string> = {
-  '7d': (l) => `Reminder: milestone ${l} — 7 zile`,
-  '3d': (l) => `Atenție: milestone ${l} — 3 zile`,
-  '1d': (l) => `URGENT: milestone ${l} — mâine`,
-  overdue: (l) => `DEPĂȘIT: milestone ${l} — trebuie acțiune`,
+function subjectFor(kind: MilestoneDeadlineKind, label: string, isToday: boolean): string {
+  switch (kind) {
+    case '7d':
+      return `Reminder: milestone ${label} — 7 zile`
+    case '3d':
+      return `Atenție: milestone ${label} — 3 zile`
+    case '1d':
+      return isToday
+        ? `URGENT: milestone ${label} — AZI`
+        : `URGENT: milestone ${label} — mâine`
+    case 'overdue':
+      return `DEPĂȘIT: milestone ${label} — trebuie acțiune`
+  }
 }
 
-const LEAD_BY_KIND: Record<MilestoneDeadlineKind, string> = {
-  '7d': 'Reminder: o etapă din campanie are deadline în <strong>7 zile</strong>.',
-  '3d': 'Atenție: o etapă are deadline în <strong>3 zile</strong>.',
-  '1d': 'URGENT: o etapă are deadline <strong>mâine</strong>.',
-  overdue: 'Această etapă are deadline <strong>depășit</strong> și nu a fost marcată finalizată.',
+function leadFor(kind: MilestoneDeadlineKind, isToday: boolean): string {
+  switch (kind) {
+    case '7d':
+      return 'Reminder: o etapă din campanie are deadline în <strong>7 zile</strong>.'
+    case '3d':
+      return 'Atenție: o etapă are deadline în <strong>3 zile</strong>.'
+    case '1d':
+      return isToday
+        ? 'URGENT: o etapă are deadline <strong>AZI</strong>.'
+        : 'URGENT: o etapă are deadline <strong>mâine</strong>.'
+    case 'overdue':
+      return 'Această etapă are deadline <strong>depășit</strong> și nu a fost marcată finalizată.'
+  }
 }
 
 export function milestoneDeadlineReminder(p: MilestoneReminderParams) {
-  const subject = SUBJECT_BY_KIND[p.kind](`${p.milestoneLabel} (${p.campaignName})`)
+  const isToday = p.isToday === true
+  const subject = subjectFor(p.kind, `${p.milestoneLabel} (${p.campaignName})`, isToday)
+  const lead = leadFor(p.kind, isToday)
 
   const notesBlock = p.notes
     ? `<div style="color:#57534e;font-size:13px;margin-top:6px;"><strong>Note:</strong> ${esc(p.notes)}</div>`
@@ -39,7 +62,7 @@ export function milestoneDeadlineReminder(p: MilestoneReminderParams) {
 
   const html = layout(`
     <p>Salut <strong>${esc(p.recipientName)}</strong>,</p>
-    <p>${LEAD_BY_KIND[p.kind]}</p>
+    <p>${lead}</p>
     ${card(`
       <div style="font-weight:600;color:#1c1917;margin-bottom:6px;">${esc(p.milestoneLabel)}</div>
       <div style="color:#57534e;font-size:13px;">Campania: <strong>${esc(p.campaignName)}</strong> · Brand: ${esc(p.brandName)}</div>
@@ -53,7 +76,7 @@ export function milestoneDeadlineReminder(p: MilestoneReminderParams) {
   const text = [
     `Salut ${p.recipientName},`,
     '',
-    LEAD_BY_KIND[p.kind].replace(/<[^>]+>/g, ''),
+    lead.replace(/<[^>]+>/g, ''),
     '',
     p.milestoneLabel,
     `Campania: ${p.campaignName} · Brand: ${p.brandName}`,
