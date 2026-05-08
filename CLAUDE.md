@@ -91,6 +91,18 @@ on demand.
   `campaigns.total_budget`, `campaign_influencers.agreed_fee`). Display
   format: `formatEur()` from `lib/influencers/format.ts` — `€` prefix,
   `ro-RO` locale grouping, no decimals.
+- **Influencer tier enum: `nano`, `micro`, `mid`, `macro`** (4 values, DB
+  CHECK enforces). The `macro` tier displays as **"Macro & VIP"** (short)
+  or **"Macro & VIP / Community Size"** (long) — covers everything from
+  classic macro influencers up through community-size creators. Mega tier
+  was consolidated into macro on 2026-05-08 (migration 019). Source of
+  truth: `lib/influencers/tiers.ts` — `TIER_VALUES`, `TIER_LABELS_SHORT`,
+  `TIER_LABELS_LONG`, `TIER_BADGE`.
+- **No campaign templates.** Campaigns start with zero task_groups and zero
+  tasks (migration 018 dropped `campaign_templates`, `campaigns.template_id`,
+  and the materialising RPC). Each campaign owner adds groups + tasks
+  manually after seeing what the brief actually needs. Starter packs may
+  return after 10–20 real campaigns inform the pattern.
 
 ## Constraints
 - Edge runtime is NOT supported by @opennextjs/cloudflare for API route

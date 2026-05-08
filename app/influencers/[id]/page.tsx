@@ -3,19 +3,11 @@ import { redirect, notFound } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
 import Link from 'next/link'
 import { Nav, type NavRole } from '@/app/_components/nav'
-import { PLATFORMS, type Influencer, type Tier, type ManagerSummary } from '@/lib/influencers/types'
+import { PLATFORMS, TIER_BADGE, TIER_LABELS_LONG, type Influencer, type ManagerSummary } from '@/lib/influencers/types'
 import { formatFollowers, formatEur } from '@/lib/influencers/format'
 import { DetailUI } from './detail-ui'
 
 export const dynamic = 'force-dynamic'
-
-const TIER_BADGE: Record<Tier, string> = {
-  nano: 'bg-stone-200 text-stone-700',
-  micro: 'bg-blue-100 text-blue-700',
-  mid: 'bg-cyan-100 text-cyan-700',
-  macro: 'bg-purple-100 text-purple-700',
-  mega: 'bg-amber-100 text-amber-800',
-}
 
 export default async function InfluencerDetailPage({
   params,
@@ -74,7 +66,7 @@ export default async function InfluencerDetailPage({
                     {i.primary_handle && <span className="text-sm text-stone-600">{i.primary_handle}</span>}
                     {i.tier && (
                       <span className={`text-[10px] uppercase tracking-wide font-medium px-2 py-0.5 rounded-full ${TIER_BADGE[i.tier]}`}>
-                        {i.tier}
+                        {TIER_LABELS_LONG[i.tier]}
                       </span>
                     )}
                     <span className={`text-[10px] uppercase tracking-wide ${i.status === 'active' ? 'text-emerald-600' : i.status === 'blacklist' ? 'text-rose-600' : 'text-stone-400'}`}>

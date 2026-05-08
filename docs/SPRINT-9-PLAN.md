@@ -18,7 +18,7 @@
 |------|-------|----------|
 | 0 | Frontend audit (code-driven; screenshots TBD by Stefan) + design system | ✅ |
 | 1 | Currency RON → EUR pe influenceri | ✅ |
-| 2 | Eliminate templates + starter pack hardcoded | ~1h |
+| 2 | Eliminate templates (campaigns start empty) + tier consolidation (mega→macro&VIP) | ✅ — starter pack deferred until pattern visible from 10–20 real campaigns |
 | 3 | Deliverables + Milestones schema + UI pe /campaigns/[id] | ~2h |
 | 4 | Multi-account junction | ~45 min |
 | 5 | RLS refactor — account scoping pe influencers + campaigns + tasks; owner bypass | ~1.5h |

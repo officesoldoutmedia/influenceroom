@@ -1,5 +1,10 @@
-export const TIERS = ['nano', 'micro', 'mid', 'macro', 'mega'] as const
-export type Tier = (typeof TIERS)[number]
+// Tier source-of-truth lives in ./tiers.ts (Sprint 9 Faza 2B consolidated
+// mega → macro). Aliased here as TIERS so the existing import surface
+// (`import { TIERS, type Tier } from '@/lib/influencers/types'`) keeps
+// working without touching dozens of consumer files.
+import type { Tier } from './tiers'
+export { TIER_VALUES as TIERS, TIER_BADGE, TIER_LABELS_SHORT, TIER_LABELS_LONG } from './tiers'
+export type { Tier }
 
 export const PLATFORMS = ['instagram', 'tiktok', 'youtube', 'twitch'] as const
 export type Platform = (typeof PLATFORMS)[number]

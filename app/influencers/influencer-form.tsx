@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import {
   TIERS,
+  TIER_LABELS_LONG,
   PLATFORMS,
   STATUSES,
   PRESET_TAGS,
@@ -188,7 +189,7 @@ export function InfluencerFormFields({
           <select value={form.tier} onChange={(e) => set({ ...form, tier: e.target.value as Tier | '' })} className={inputCls}>
             <option value="">—</option>
             {TIERS.map((t) => (
-              <option key={t} value={t}>{t}</option>
+              <option key={t} value={t}>{TIER_LABELS_LONG[t]}</option>
             ))}
           </select>
         </Field>

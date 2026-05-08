@@ -11,6 +11,7 @@ import {
   type Performance,
 } from '@/lib/campaigns/types'
 import { formatEur } from '@/lib/influencers/format'
+import { TIER_BADGE, TIER_LABELS_SHORT } from '@/lib/influencers/types'
 
 const STATUS_BADGE: Record<JunctionStatus, string> = {
   pitched: 'bg-stone-200 text-stone-700',
@@ -20,14 +21,6 @@ const STATUS_BADGE: Record<JunctionStatus, string> = {
   published: 'bg-cyan-100 text-cyan-700',
   paid: 'bg-emerald-100 text-emerald-700',
   cancelled: 'bg-rose-100 text-rose-700',
-}
-
-const TIER_BADGE: Record<string, string> = {
-  nano: 'bg-stone-200 text-stone-700',
-  micro: 'bg-blue-100 text-blue-700',
-  mid: 'bg-cyan-100 text-cyan-700',
-  macro: 'bg-purple-100 text-purple-700',
-  mega: 'bg-amber-100 text-amber-800',
 }
 
 type ApiResp = { ok?: boolean; error?: string; item?: CampaignInfluencerJoined }
@@ -209,8 +202,8 @@ export function RosterUI({
                     </td>
                     <td className="px-4 py-3">
                       {item.influencer?.tier && (
-                        <span className={`text-[10px] uppercase tracking-wide font-medium px-2 py-0.5 rounded-full ${TIER_BADGE[item.influencer.tier] ?? 'bg-stone-100 text-stone-700'}`}>
-                          {item.influencer.tier}
+                        <span className={`text-[10px] uppercase tracking-wide font-medium px-2 py-0.5 rounded-full ${TIER_BADGE[item.influencer.tier as keyof typeof TIER_BADGE] ?? 'bg-stone-100 text-stone-700'}`}>
+                          {TIER_LABELS_SHORT[item.influencer.tier as keyof typeof TIER_LABELS_SHORT]}
                         </span>
                       )}
                     </td>
@@ -422,8 +415,8 @@ function AddModal({
                       <div className="text-xs text-stone-500">{r.primary_handle ?? '—'}</div>
                     </div>
                     {r.tier && (
-                      <span className={`text-[10px] uppercase tracking-wide font-medium px-2 py-0.5 rounded-full ${TIER_BADGE[r.tier] ?? 'bg-stone-100 text-stone-700'}`}>
-                        {r.tier}
+                      <span className={`text-[10px] uppercase tracking-wide font-medium px-2 py-0.5 rounded-full ${TIER_BADGE[r.tier as keyof typeof TIER_BADGE] ?? 'bg-stone-100 text-stone-700'}`}>
+                        {TIER_LABELS_SHORT[r.tier as keyof typeof TIER_LABELS_SHORT]}
                       </span>
                     )}
                   </button>

@@ -7,6 +7,8 @@ import {
   TIERS,
   PLATFORMS,
   PRESET_TAGS,
+  TIER_BADGE,
+  TIER_LABELS_SHORT,
   type Tier,
   type Influencer,
   type ManagerSummary,
@@ -21,14 +23,6 @@ import {
 } from './influencer-form'
 
 type Role = 'owner' | 'manager' | 'account' | 'intern'
-
-const TIER_BADGE: Record<Tier, string> = {
-  nano: 'bg-stone-200 text-stone-700',
-  micro: 'bg-blue-100 text-blue-700',
-  mid: 'bg-cyan-100 text-cyan-700',
-  macro: 'bg-purple-100 text-purple-700',
-  mega: 'bg-amber-100 text-amber-800',
-}
 
 type Filters = {
   q: string | null
@@ -147,7 +141,7 @@ export function InfluencersUI({
                       <span className="font-medium text-stone-900 truncate">{i.name}</span>
                       {i.tier && (
                         <span className={`shrink-0 text-[10px] uppercase tracking-wide font-medium px-2 py-0.5 rounded-full ${TIER_BADGE[i.tier]}`}>
-                          {i.tier}
+                          {TIER_LABELS_SHORT[i.tier]}
                         </span>
                       )}
                     </div>
@@ -202,7 +196,7 @@ export function InfluencersUI({
                     <td className="px-4 py-3">
                       {i.tier && (
                         <span className={`text-[10px] uppercase tracking-wide font-medium px-2 py-0.5 rounded-full ${TIER_BADGE[i.tier]}`}>
-                          {i.tier}
+                          {TIER_LABELS_SHORT[i.tier]}
                         </span>
                       )}
                     </td>
@@ -450,7 +444,7 @@ function FilterBar({
                     : 'bg-stone-100 text-stone-700 border-stone-200 hover:bg-stone-200'
                 }`}
               >
-                {t}
+                {TIER_LABELS_SHORT[t]}
               </button>
             )
           })}
