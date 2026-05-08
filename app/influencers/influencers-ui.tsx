@@ -6,9 +6,12 @@ import { useRouter, usePathname } from 'next/navigation'
 import {
   TIERS,
   PLATFORMS,
+  PLATFORM_LABEL,
   PRESET_TAGS,
   TIER_BADGE,
   TIER_LABELS_SHORT,
+  TIER_LABELS_RANGE,
+  primaryHandle,
   type Tier,
   type Influencer,
   type ManagerSummary,
@@ -145,11 +148,14 @@ export function InfluencersUI({
                         </span>
                       )}
                     </div>
-                    {i.primary_handle && (
-                      <div className="text-[12px] text-stone-500 truncate mt-0.5">
-                        {i.primary_handle}
-                      </div>
-                    )}
+                    {(() => {
+                      const ph = primaryHandle(i.social_handles ?? {})
+                      return ph ? (
+                        <div className="text-[12px] text-stone-500 truncate mt-0.5">
+                          @{ph.entry.handle} · {PLATFORM_LABEL[ph.platform]}
+                        </div>
+                      ) : null
+                    })()}
                     <div className="mt-2 flex items-center justify-between text-[12px] text-stone-500 gap-2">
                       <span className="truncate">
                         {i.account_manager_id ? (
@@ -192,7 +198,12 @@ export function InfluencersUI({
                         <span className="font-medium text-stone-900">{i.name}</span>
                       </Link>
                     </td>
-                    <td className="px-4 py-3 text-stone-600">{i.primary_handle ?? '—'}</td>
+                    <td className="px-4 py-3 text-stone-600">
+                      {(() => {
+                        const ph = primaryHandle(i.social_handles ?? {})
+                        return ph ? `@${ph.entry.handle}` : '—'
+                      })()}
+                    </td>
                     <td className="px-4 py-3">
                       {i.tier && (
                         <span className={`text-[10px] uppercase tracking-wide font-medium px-2 py-0.5 rounded-full ${TIER_BADGE[i.tier]}`}>
@@ -285,8 +296,8 @@ function hasActiveFilter(f: Filters): boolean {
 
 function primaryFollowers(i: Influencer): string {
   for (const p of PLATFORMS) {
-    const stats = i.platforms?.[p]
-    if (stats?.followers != null) return formatFollowers(stats.followers)
+    const entry = i.social_handles?.[p]
+    if (entry?.followers != null && entry.followers > 0) return formatFollowers(entry.followers)
   }
   return '—'
 }
@@ -444,7 +455,7 @@ function FilterBar({
                     : 'bg-stone-100 text-stone-700 border-stone-200 hover:bg-stone-200'
                 }`}
               >
-                {TIER_LABELS_SHORT[t]}
+                {TIER_LABELS_RANGE[t]}
               </button>
             )
           })}

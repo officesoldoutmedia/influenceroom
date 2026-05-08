@@ -1,30 +1,38 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   TIERS,
-  TIER_LABELS_LONG,
+  TIER_LABELS_RANGE,
+  TIER_LABELS_FULL,
   PLATFORMS,
+  PLATFORM_LABEL,
   STATUSES,
   PRESET_TAGS,
+  inferUrl,
+  validateUrl,
+  normalizeHandle,
+  maxFollowers,
+  calcTier,
   type Tier,
   type Platform,
+  type SocialHandle,
+  type SocialHandles,
   type InfluencerStatus,
   type Influencer,
-  type PlatformStats,
   type FiscalData,
   type ManagerSummary,
 } from '@/lib/influencers/types'
 
 export type FormValues = {
   name: string
-  primary_handle: string
   tier: Tier | ''
+  tier_manual_override: boolean
   language: string
   location_city: string
   location_country: string
   niche_tags: string[]
-  platforms: Partial<Record<Platform, PlatformStats>>
+  social_handles: SocialHandles
   rate_post: string
   rate_story: string
   rate_reel: string
@@ -43,13 +51,13 @@ export type FormValues = {
 export function emptyForm(defaultManagerId: string = ''): FormValues {
   return {
     name: '',
-    primary_handle: '',
     tier: '',
+    tier_manual_override: false,
     language: 'ro',
     location_city: '',
     location_country: 'Romania',
     niche_tags: [],
-    platforms: {},
+    social_handles: {},
     rate_post: '',
     rate_story: '',
     rate_reel: '',
@@ -69,13 +77,13 @@ export function emptyForm(defaultManagerId: string = ''): FormValues {
 export function influencerToForm(i: Influencer): FormValues {
   return {
     name: i.name,
-    primary_handle: i.primary_handle ?? '',
     tier: (i.tier ?? '') as Tier | '',
+    tier_manual_override: i.tier_manual_override,
     language: i.language ?? 'ro',
     location_city: i.location_city ?? '',
     location_country: i.location_country ?? 'Romania',
     niche_tags: i.niche_tags ?? [],
-    platforms: i.platforms ?? {},
+    social_handles: i.social_handles ?? {},
     rate_post: i.rate_post == null ? '' : String(i.rate_post),
     rate_story: i.rate_story == null ? '' : String(i.rate_story),
     rate_reel: i.rate_reel == null ? '' : String(i.rate_reel),
@@ -94,31 +102,32 @@ export function influencerToForm(i: Influencer): FormValues {
 
 export function formToPayload(f: FormValues): Record<string, unknown> {
   const numOrNull = (s: string) => (s === '' ? null : Number(s))
-  // Strip empty platform sub-objects
-  const platforms: Record<string, PlatformStats> = {}
+  // Strip empty handles, normalize the rest.
+  const social: SocialHandles = {}
   for (const k of PLATFORMS) {
-    const p = f.platforms[k]
-    if (!p) continue
-    const cleaned: PlatformStats = {}
-    if (p.handle) cleaned.handle = p.handle
-    if (p.followers !== undefined && p.followers !== null && !Number.isNaN(p.followers)) cleaned.followers = p.followers
-    if (p.engagement_rate !== undefined && p.engagement_rate !== null && !Number.isNaN(p.engagement_rate)) cleaned.engagement_rate = p.engagement_rate
-    if (Object.keys(cleaned).length > 0) platforms[k] = cleaned
+    const entry = f.social_handles[k]
+    if (!entry) continue
+    const handle = normalizeHandle(entry.handle ?? '')
+    if (!handle) continue
+    social[k] = {
+      handle,
+      url: entry.url?.trim() || inferUrl(k, handle),
+      followers: Number.isFinite(entry.followers) ? entry.followers : 0,
+    }
   }
   const fiscal: FiscalData = {}
   for (const k of ['entity_type', 'cui', 'iban', 'address'] as const) {
     const v = f.fiscal_data[k]
     if (v && v.trim()) fiscal[k] = v.trim()
   }
-  return {
+  const payload: Record<string, unknown> = {
     name: f.name.trim(),
-    primary_handle: f.primary_handle.trim() || null,
-    tier: f.tier || null,
+    tier_manual_override: f.tier_manual_override,
     language: f.language || 'ro',
     location_city: f.location_city.trim() || null,
     location_country: f.location_country.trim() || 'Romania',
     niche_tags: f.niche_tags,
-    platforms,
+    social_handles: social,
     rate_post: numOrNull(f.rate_post),
     rate_story: numOrNull(f.rate_story),
     rate_reel: numOrNull(f.rate_reel),
@@ -133,10 +142,16 @@ export function formToPayload(f: FormValues): Record<string, unknown> {
     notes: f.notes.trim() || null,
     account_manager_id: f.account_manager_id || null,
   }
+  // Tier value only matters when override is on; the trigger ignores it
+  // otherwise but include it to make audit logs unambiguous.
+  if (f.tier_manual_override && f.tier) payload.tier = f.tier
+  return payload
 }
 
 const inputCls =
   'w-full px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:border-brand-700 focus:ring-2 focus:ring-brand-500/20'
+const inputErrorCls =
+  'w-full px-3 py-2 border border-rose-400 rounded-lg text-sm focus:outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-200'
 const textareaCls = `${inputCls} min-h-[60px]`
 const labelCls = 'block text-xs font-medium text-stone-600 mb-1'
 const sectionTitle = 'text-sm font-semibold text-stone-900 mt-5 mb-2'
@@ -160,6 +175,9 @@ export function InfluencerFormFields({
   managers: ManagerSummary[]
 }) {
   const [tagInput, setTagInput] = useState('')
+  const [expandedPlatforms, setExpandedPlatforms] = useState<Set<Platform>>(
+    () => new Set((Object.keys(form.social_handles) as Platform[]).filter((k) => form.social_handles[k]))
+  )
 
   function addTag(t: string) {
     const trimmed = t.trim().toLowerCase()
@@ -170,30 +188,76 @@ export function InfluencerFormFields({
     set({ ...form, niche_tags: form.niche_tags.filter((x) => x !== t) })
   }
 
-  function setPlatform(p: Platform, patch: Partial<PlatformStats>) {
-    const cur = form.platforms[p] ?? {}
-    set({ ...form, platforms: { ...form.platforms, [p]: { ...cur, ...patch } } })
+  function togglePlatform(p: Platform) {
+    const next = new Set(expandedPlatforms)
+    if (next.has(p)) {
+      next.delete(p)
+      // Drop the entry from social_handles when collapsing.
+      const updated = { ...form.social_handles }
+      delete updated[p]
+      set({ ...form, social_handles: updated })
+    } else {
+      next.add(p)
+      // Initialize empty entry; user fills it.
+      if (!form.social_handles[p]) {
+        set({
+          ...form,
+          social_handles: {
+            ...form.social_handles,
+            [p]: { handle: '', url: '', followers: 0 } as SocialHandle,
+          },
+        })
+      }
+    }
+    setExpandedPlatforms(next)
   }
+
+  function setHandle(p: Platform, handle: string) {
+    const cleanHandle = handle
+    const cur = form.social_handles[p] ?? { handle: '', url: '', followers: 0 }
+    // Auto-fill URL if empty or matches the previous inferred URL.
+    const prevInferred = inferUrl(p, cur.handle)
+    const nextUrl =
+      cur.url === '' || cur.url === prevInferred ? inferUrl(p, normalizeHandle(cleanHandle)) : cur.url
+    set({
+      ...form,
+      social_handles: {
+        ...form.social_handles,
+        [p]: { ...cur, handle: cleanHandle, url: nextUrl },
+      },
+    })
+  }
+
+  function setUrl(p: Platform, url: string) {
+    const cur = form.social_handles[p] ?? { handle: '', url: '', followers: 0 }
+    set({
+      ...form,
+      social_handles: { ...form.social_handles, [p]: { ...cur, url } },
+    })
+  }
+
+  function setFollowers(p: Platform, val: string) {
+    const cur = form.social_handles[p] ?? { handle: '', url: '', followers: 0 }
+    const num = val === '' ? 0 : Number(val)
+    set({
+      ...form,
+      social_handles: { ...form.social_handles, [p]: { ...cur, followers: num } },
+    })
+  }
+
+  const autoTier = useMemo(() => calcTier(maxFollowers(form.social_handles)), [form.social_handles])
 
   return (
     <div className="space-y-3">
       <h3 className={sectionTitle}>Basic</h3>
       <Field label="Name *">
-        <input value={form.name} onChange={(e) => set({ ...form, name: e.target.value })} required className={inputCls} />
+        <input
+          value={form.name}
+          onChange={(e) => set({ ...form, name: e.target.value })}
+          required
+          className={inputCls}
+        />
       </Field>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Primary handle">
-          <input value={form.primary_handle} onChange={(e) => set({ ...form, primary_handle: e.target.value })} className={inputCls} placeholder="@handle" />
-        </Field>
-        <Field label="Tier">
-          <select value={form.tier} onChange={(e) => set({ ...form, tier: e.target.value as Tier | '' })} className={inputCls}>
-            <option value="">—</option>
-            {TIERS.map((t) => (
-              <option key={t} value={t}>{TIER_LABELS_LONG[t]}</option>
-            ))}
-          </select>
-        </Field>
-      </div>
       <div className="grid grid-cols-3 gap-3">
         <Field label="Language">
           <input value={form.language} onChange={(e) => set({ ...form, language: e.target.value })} className={inputCls} />
@@ -246,46 +310,110 @@ export function InfluencerFormFields({
         </div>
       </Field>
 
-      <h3 className={sectionTitle}>Platforms</h3>
-      {PLATFORMS.map((p) => {
-        const stats = form.platforms[p] ?? {}
-        return (
-          <div key={p} className="border border-stone-200 rounded-lg p-3">
-            <div className="text-xs font-semibold uppercase tracking-wide text-stone-700 mb-2">{p}</div>
-            <div className="grid grid-cols-3 gap-2">
-              <Field label="Handle">
+      <h3 className={sectionTitle}>Social media</h3>
+      <div className="space-y-2">
+        {PLATFORMS.map((p) => {
+          const expanded = expandedPlatforms.has(p)
+          const entry = form.social_handles[p]
+          const urlValid = !entry?.url || validateUrl(p, entry.url)
+          return (
+            <div
+              key={p}
+              className={`border rounded-lg ${expanded ? 'border-brand-300 bg-brand-50/30' : 'border-stone-200'}`}
+            >
+              <label className="flex items-center gap-2 px-3 py-2.5 cursor-pointer">
                 <input
-                  value={stats.handle ?? ''}
-                  onChange={(e) => setPlatform(p, { handle: e.target.value })}
-                  className={inputCls}
-                  placeholder="@handle"
+                  type="checkbox"
+                  checked={expanded}
+                  onChange={() => togglePlatform(p)}
                 />
-              </Field>
-              <Field label="Followers">
-                <input
-                  type="number"
-                  min={0}
-                  value={stats.followers ?? ''}
-                  onChange={(e) => setPlatform(p, { followers: e.target.value === '' ? undefined : Number(e.target.value) })}
-                  className={inputCls}
-                />
-              </Field>
-              <Field label="Engagement rate (0-1)">
-                <input
-                  type="number"
-                  step="0.001"
-                  min={0}
-                  max={1}
-                  value={stats.engagement_rate ?? ''}
-                  onChange={(e) => setPlatform(p, { engagement_rate: e.target.value === '' ? undefined : Number(e.target.value) })}
-                  className={inputCls}
-                  placeholder="0.045"
-                />
-              </Field>
+                <span className="text-sm font-medium text-stone-800">{PLATFORM_LABEL[p]}</span>
+                {entry?.handle && (
+                  <span className="text-[12px] text-stone-500">
+                    @{normalizeHandle(entry.handle)}
+                    {entry.followers > 0 && ` · ${entry.followers.toLocaleString('ro-RO')} followers`}
+                  </span>
+                )}
+              </label>
+              {expanded && (
+                <div className="px-3 pb-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <Field label="Handle">
+                    <input
+                      value={entry?.handle ?? ''}
+                      onChange={(e) => setHandle(p, e.target.value)}
+                      placeholder="cartedor (fără @)"
+                      className={inputCls}
+                    />
+                  </Field>
+                  <Field label="URL">
+                    <input
+                      type="url"
+                      value={entry?.url ?? ''}
+                      onChange={(e) => setUrl(p, e.target.value)}
+                      placeholder="https://..."
+                      className={urlValid ? inputCls : inputErrorCls}
+                    />
+                  </Field>
+                  <Field label="Followers">
+                    <input
+                      type="number"
+                      min={0}
+                      value={entry?.followers ?? 0}
+                      onChange={(e) => setFollowers(p, e.target.value)}
+                      className={inputCls}
+                    />
+                  </Field>
+                  {!urlValid && (
+                    <p className="sm:col-span-3 text-[12px] text-rose-600 -mt-1">
+                      URL trebuie să fie HTTPS și pe domeniul {PLATFORM_LABEL[p]}.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
-          </div>
-        )
-      })}
+          )
+        })}
+      </div>
+
+      <h3 className={sectionTitle}>Tier</h3>
+      <div className="border border-stone-200 rounded-lg p-3 space-y-3">
+        <p className="text-[13px] text-stone-700">
+          Auto-calculat: <strong>{TIER_LABELS_FULL[autoTier]}</strong>
+          <span className="text-stone-500"> (max followers: {maxFollowers(form.social_handles).toLocaleString('ro-RO')})</span>
+        </p>
+        <label className="flex items-center gap-2 text-[13px] text-stone-700">
+          <input
+            type="checkbox"
+            checked={form.tier_manual_override}
+            onChange={(e) => {
+              const on = e.target.checked
+              set({
+                ...form,
+                tier_manual_override: on,
+                tier: on ? (form.tier || autoTier) : '',
+              })
+            }}
+          />
+          <span>Override manual</span>
+        </label>
+        {form.tier_manual_override && (
+          <Field label="Tier (manual)">
+            <select
+              value={form.tier || autoTier}
+              onChange={(e) => set({ ...form, tier: e.target.value as Tier })}
+              className={inputCls}
+            >
+              {TIERS.map((t) => (
+                <option key={t} value={t}>{TIER_LABELS_RANGE[t]}</option>
+              ))}
+            </select>
+          </Field>
+        )}
+        <p className="text-[12px] text-stone-500">
+          Tier-ul se actualizează automat când modifici follower count-ul. Activează override
+          manual doar pentru cazuri speciale.
+        </p>
+      </div>
 
       <h3 className={sectionTitle}>Rates (EUR)</h3>
       <div className="grid grid-cols-4 gap-3">

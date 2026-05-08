@@ -92,12 +92,30 @@ on demand.
   format: `formatEur()` from `lib/influencers/format.ts` — `€` prefix,
   `ro-RO` locale grouping, no decimals.
 - **Influencer tier enum: `nano`, `micro`, `mid`, `macro`** (4 values, DB
-  CHECK enforces). The `macro` tier displays as **"Macro & VIP"** (short)
-  or **"Macro & VIP / Community Size"** (long) — covers everything from
-  classic macro influencers up through community-size creators. Mega tier
-  was consolidated into macro on 2026-05-08 (migration 019). Source of
-  truth: `lib/influencers/tiers.ts` — `TIER_VALUES`, `TIER_LABELS_SHORT`,
-  `TIER_LABELS_LONG`, `TIER_BADGE`.
+  CHECK enforces). Display variants in `lib/influencers/tiers.ts`:
+  `TIER_LABELS_SHORT` ("Middle"), `TIER_LABELS_RANGE` ("Middle · 100k–500k"
+  — used on filter pills + form dropdown per Oana 2026-05-08 feedback),
+  `TIER_LABELS_FULL` ("Middle (community size 100k–500k)"). Mega tier was
+  consolidated into macro on 2026-05-08 (migration 019).
+- **Tier auto-calc** (Sprint 9 Faza 3c, migration 026): tier is derived
+  by trigger `trg_influencers_auto_tier` from `MAX(followers)` across the
+  4 platforms in `social_handles`. Thresholds in `TIER_THRESHOLDS`
+  (mirrored in DB function `calc_influencer_tier`): nano <25k, micro
+  <100k, mid <500k, macro 500k+. The `tier_manual_override` flag on
+  `influencers` bypasses the trigger so a human pick stays sticky — the
+  form has a checkbox + dropdown for this. Existing rows from before the
+  migration were marked `tier_manual_override=true` to preserve the
+  values the team had set manually.
+- **Social handles model** (Sprint 9 Faza 3c, migration 025):
+  `influencers.social_handles jsonb` stores per-platform handle/url/
+  followers in shape `{instagram?, tiktok?, youtube?, facebook?: {handle,
+  url, followers}}`. The old `platforms` JSONB (which carried
+  `engagement_rate`) and the standalone `primary_handle` text column were
+  dropped — handles are now structured per-platform with explicit URLs
+  for safe `target=_blank` linking. Helpers in `lib/influencers/social.ts`:
+  `inferUrl(platform, handle)`, `validateUrl(platform, url)` (HTTPS +
+  domain match), `normalizeHandle` (strips `@`), `maxFollowers`,
+  `primaryHandle` (first populated platform in canonical order).
 - **No campaign templates.** Campaigns start with zero task_groups and zero
   tasks (migration 018 dropped `campaign_templates`, `campaigns.template_id`,
   and the materialising RPC). Each campaign owner adds groups + tasks
