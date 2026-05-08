@@ -103,6 +103,23 @@ on demand.
   and the materialising RPC). Each campaign owner adds groups + tasks
   manually after seeing what the brief actually needs. Starter packs may
   return after 10–20 real campaigns inform the pattern.
+- **Campaign participants model** (Sprint 9 Faza 3a, migration 021): the
+  old `campaign_influencers` junction (one row per campaign × influencer)
+  was replaced by `campaign_participants` — one row per
+  **campaign × influencer × platform**. Each row carries `platform`
+  (`social_platform` ENUM: instagram/tiktok/youtube/facebook),
+  `account_handle`, `is_adhoc` (true when `influencer_id` is NULL — used
+  for partners that don't have an influencer profile, like the brand
+  itself co-posting), `agreed_fee` (EUR), `status` (`participant_status`
+  ENUM, same 7 values as the old junction), `publish_date`, `post_url`.
+  CHECK enforces `(influencer_id IS NULL) = is_adhoc`. UI surface is
+  unified on `/campaigns/[id]` — the separate `/campaigns/[id]/influencers`
+  route was removed; types `CampaignInfluencer*` / `JunctionStatus` were
+  replaced by `CampaignParticipant*` / `ParticipantStatus`.
+- **Brand inline create**: `/campaigns/new` uses a `<Combobox>` from
+  `lib/ui/combobox.tsx` with type-ahead + a "+ Crează brand nou" footer
+  that POSTs to `/api/brands` and selects the new brand inline — no need
+  to leave the campaign form to register an unfamiliar brand.
 
 ## Constraints
 - Edge runtime is NOT supported by @opennextjs/cloudflare for API route
