@@ -56,13 +56,13 @@ export async function searchInfluencers(p: SearchParams): Promise<SearchResult> 
   const rangePlatform: Platform | null =
     platformFilter ?? (p.fmin != null || p.fmax != null ? 'instagram' : null)
   if (platformFilter) {
-    query = query.not(`platforms->${platformFilter}`, 'is', null)
+    query = query.not(`social_handles->${platformFilter}`, 'is', null)
   }
   if (rangePlatform && p.fmin != null && Number.isFinite(p.fmin)) {
-    query = query.gte(`platforms->${rangePlatform}->followers::int`, p.fmin)
+    query = query.gte(`social_handles->${rangePlatform}->followers::int`, p.fmin)
   }
   if (rangePlatform && p.fmax != null && Number.isFinite(p.fmax)) {
-    query = query.lte(`platforms->${rangePlatform}->followers::int`, p.fmax)
+    query = query.lte(`social_handles->${rangePlatform}->followers::int`, p.fmax)
   }
 
   const from = (page - 1) * PAGE_SIZE

@@ -1,11 +1,18 @@
 import { TIERS, STATUSES } from './types'
+import {
+  PLATFORMS,
+  validateUrl,
+  normalizeHandle,
+  type Platform,
+  type SocialHandles,
+} from './social'
 
 export type InfluencerInput = {
   name?: string
-  primary_handle?: string | null
-  platforms?: Record<string, unknown>
+  social_handles?: Record<string, unknown>
   niche_tags?: string[]
   tier?: string | null
+  tier_manual_override?: boolean
   language?: string | null
   location_city?: string | null
   location_country?: string | null
@@ -28,6 +35,32 @@ export type ValidateResult =
   | { ok: true; data: Record<string, unknown> }
   | { ok: false; error: string }
 
+function validateSocialHandles(raw: Record<string, unknown>): SocialHandles | { error: string } {
+  const out: SocialHandles = {}
+  for (const platform of PLATFORMS) {
+    const entry = raw[platform]
+    if (entry === undefined || entry === null) continue
+    if (typeof entry !== 'object') return { error: `invalid_handle_${platform}` }
+    const obj = entry as Record<string, unknown>
+    const rawHandle = typeof obj.handle === 'string' ? obj.handle : ''
+    const handle = normalizeHandle(rawHandle)
+    if (!handle) continue // empty handle = platform not used
+    if (handle.length < 1 || handle.length > 100) return { error: `invalid_handle_${platform}` }
+    const url = typeof obj.url === 'string' ? obj.url.trim() : ''
+    if (!url) return { error: `missing_url_${platform}` }
+    if (!validateUrl(platform as Platform, url)) return { error: `invalid_url_${platform}` }
+    const followersRaw = obj.followers
+    let followers = 0
+    if (typeof followersRaw === 'number' && Number.isFinite(followersRaw) && followersRaw >= 0) {
+      followers = Math.floor(followersRaw)
+    } else if (followersRaw !== undefined && followersRaw !== null && followersRaw !== '') {
+      return { error: `invalid_followers_${platform}` }
+    }
+    out[platform as Platform] = { handle, url, followers }
+  }
+  return out
+}
+
 export function validateAndNormalize(body: InfluencerInput, partial = false): ValidateResult {
   const out: Record<string, unknown> = {}
 
@@ -36,14 +69,25 @@ export function validateAndNormalize(body: InfluencerInput, partial = false): Va
     if (!n) return { ok: false, error: 'missing_name' }
     out.name = n
   }
-  if (body.primary_handle !== undefined) out.primary_handle = body.primary_handle?.trim() || null
-  if (body.platforms !== undefined) out.platforms = body.platforms ?? {}
+  if (body.social_handles !== undefined) {
+    const result = validateSocialHandles(body.social_handles ?? {})
+    if ('error' in result) return { ok: false, error: result.error }
+    out.social_handles = result
+  }
   if (body.niche_tags !== undefined) {
     if (!Array.isArray(body.niche_tags)) return { ok: false, error: 'invalid_tags' }
     out.niche_tags = body.niche_tags.map((t) => t.trim()).filter(Boolean)
   }
+  if (body.tier_manual_override !== undefined) {
+    out.tier_manual_override = !!body.tier_manual_override
+  }
   if (body.tier !== undefined) {
-    if (body.tier && !(TIERS as readonly string[]).includes(body.tier)) return { ok: false, error: 'invalid_tier' }
+    // Tier is only honored when the override flag is true; otherwise the
+    // DB trigger overwrites it from social_handles. We still accept and
+    // sanity-check the value so a no-op write doesn't fail validation.
+    if (body.tier && !(TIERS as readonly string[]).includes(body.tier)) {
+      return { ok: false, error: 'invalid_tier' }
+    }
     out.tier = body.tier || null
   }
   if (body.language !== undefined) out.language = body.language || 'ro'

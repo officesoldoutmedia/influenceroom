@@ -1,22 +1,36 @@
 // Tier source-of-truth lives in ./tiers.ts (Sprint 9 Faza 2B consolidated
-// mega → macro). Aliased here as TIERS so the existing import surface
-// (`import { TIERS, type Tier } from '@/lib/influencers/types'`) keeps
-// working without touching dozens of consumer files.
+// mega → macro; Faza 3c added range labels + auto-calc thresholds).
 import type { Tier } from './tiers'
-export { TIER_VALUES as TIERS, TIER_BADGE, TIER_LABELS_SHORT, TIER_LABELS_LONG } from './tiers'
+export {
+  TIER_VALUES as TIERS,
+  TIER_BADGE,
+  TIER_LABELS_SHORT,
+  TIER_LABELS_LONG,
+  TIER_LABELS_RANGE,
+  TIER_LABELS_FULL,
+  TIER_THRESHOLDS,
+  calcTier,
+} from './tiers'
 export type { Tier }
 
-export const PLATFORMS = ['instagram', 'tiktok', 'youtube', 'facebook'] as const
-export type Platform = (typeof PLATFORMS)[number]
+// Platforms + social handles (Faza 3c) — see ./social.ts for the canonical
+// PLATFORMS / Platform / SocialHandle / SocialHandles types and helpers.
+// Re-exported here so the existing
+// `import { PLATFORMS } from '@/lib/influencers/types'` import surface
+// keeps working.
+export {
+  PLATFORMS,
+  PLATFORM_LABEL,
+  inferUrl,
+  validateUrl,
+  normalizeHandle,
+  maxFollowers,
+  primaryHandle,
+} from './social'
+export type { Platform, SocialHandle, SocialHandles } from './social'
 
 export const STATUSES = ['active', 'inactive', 'blacklist'] as const
 export type InfluencerStatus = (typeof STATUSES)[number]
-
-export type PlatformStats = {
-  handle?: string
-  followers?: number
-  engagement_rate?: number
-}
 
 export type FiscalData = {
   entity_type?: string
@@ -25,13 +39,15 @@ export type FiscalData = {
   address?: string
 }
 
+import type { SocialHandles } from './social'
+
 export type Influencer = {
   id: string
   name: string
-  primary_handle: string | null
-  platforms: Partial<Record<Platform, PlatformStats>>
+  social_handles: SocialHandles
   niche_tags: string[]
   tier: Tier | null
+  tier_manual_override: boolean
   language: string | null
   location_city: string | null
   location_country: string | null
