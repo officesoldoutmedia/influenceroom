@@ -20,7 +20,7 @@
 | 1 | Currency RON → EUR pe influenceri | ✅ |
 | 2 | Eliminate templates (campaigns start empty) + tier consolidation (mega→macro&VIP) | ✅ — starter pack deferred until pattern visible from 10–20 real campaigns |
 | 3a | Foundation: campaign_participants schema + ad-hoc handles + brand inline create + Facebook platform | ✅ |
-| 3b | Deliverables + Milestones schema + UI tabs | ~2h |
+| 3b | Deliverables + Milestones schema + UI tabs | ✅ |
 | 3c | Social handles + tier auto-calc + filter labels | ~1h |
 | 4 | Multi-account junction | ~45 min |
 | 5 | RLS refactor — account scoping pe influencers + campaigns + tasks; owner bypass | ~1.5h |

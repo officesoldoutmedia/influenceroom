@@ -120,6 +120,34 @@ on demand.
   `lib/ui/combobox.tsx` with type-ahead + a "+ Crează brand nou" footer
   that POSTs to `/api/brands` and selects the new brand inline — no need
   to leave the campaign form to register an unfamiliar brand.
+- **Campaign deliverables and milestones model** (Sprint 9 Faza 3b,
+  migrations 023 + 024):
+  - `campaign_deliverables` — one row per concrete piece of content owed
+    by a participant (cascade-deletes when the participant goes). Carries
+    `type` (`deliverable_type` ENUM: story/reel/tiktok/carousel/post/
+    youtube_long/youtube_short/live/custom), `quantity` (≥1),
+    `custom_type_label` (required when type=custom), `post_date`,
+    `collab_handles[]`, `hashtags[]`, `brief`, `caption`, `notes`,
+    `status` (`deliverable_status` ENUM: draft/sent_to_influencer/
+    content_in_review/approved/published/cancelled), `published_url`,
+    `position`. CHECK enforces `published` requires both
+    `published_url` AND `post_date`.
+  - `campaign_milestones` — campaign-level checkpoints (cascade-deletes
+    with the campaign). Carries `type` (`milestone_type` ENUM:
+    brief_sent/materials_approved/content_draft_submitted/
+    final_content_approved/links_submitted/report_delivered/
+    payment_processed/other), `name` (required when type=other),
+    `due_date`, `responsible` (`milestone_responsible` ENUM:
+    account_manager/influencer/brand/other), `responsible_name`
+    (required when responsible=other), `completed_at` + `completed_by`
+    (auto-stamped from JWT when the API toggles completion), `notes`,
+    `position`.
+  - `/campaigns/[id]` is now organised into 5 tabs via the new
+    `<Tabs>` primitive in `lib/ui/tabs.tsx`: **Detalii** (brief +
+    internal notes + financial summary), **Participanți** (Faza 3a UI),
+    **Livrabile**, **Etape**, **Tasks** (existing dnd board). Tab list
+    is sticky under the nav and horizontally-scrollable on mobile via
+    snap-x.
 
 ## Constraints
 - Edge runtime is NOT supported by @opennextjs/cloudflare for API route
