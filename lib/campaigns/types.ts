@@ -120,3 +120,105 @@ export type ParticipantInfluencerRef = {
 export type CampaignParticipantJoined = CampaignParticipant & {
   influencer: ParticipantInfluencerRef | null
 }
+
+// Sprint 9 Faza 3b — deliverables (per-participant) and milestones (per-campaign).
+
+export const DELIVERABLE_TYPES = [
+  'story', 'reel', 'tiktok', 'carousel', 'post',
+  'youtube_long', 'youtube_short', 'live', 'custom',
+] as const
+export type DeliverableType = (typeof DELIVERABLE_TYPES)[number]
+
+export const DELIVERABLE_TYPE_LABEL: Record<DeliverableType, string> = {
+  story: 'Story',
+  reel: 'Reel',
+  tiktok: 'TikTok',
+  carousel: 'Carousel',
+  post: 'Post',
+  youtube_long: 'YouTube long-form',
+  youtube_short: 'YouTube Short',
+  live: 'Live',
+  custom: 'Custom',
+}
+
+export const DELIVERABLE_STATUSES = [
+  'draft', 'sent_to_influencer', 'content_in_review',
+  'approved', 'published', 'cancelled',
+] as const
+export type DeliverableStatus = (typeof DELIVERABLE_STATUSES)[number]
+
+export const DELIVERABLE_STATUS_LABEL: Record<DeliverableStatus, string> = {
+  draft: 'Schiță',
+  sent_to_influencer: 'Trimis influencer',
+  content_in_review: 'În review',
+  approved: 'Aprobat',
+  published: 'Publicat',
+  cancelled: 'Anulat',
+}
+
+export type CampaignDeliverable = {
+  id: string
+  participant_id: string
+  type: DeliverableType
+  custom_type_label: string | null
+  quantity: number
+  post_date: string | null
+  collab_handles: string[]
+  hashtags: string[]
+  brief: string | null
+  caption: string | null
+  notes: string | null
+  status: DeliverableStatus
+  published_url: string | null
+  position: number
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export const MILESTONE_TYPES = [
+  'brief_sent', 'materials_approved', 'content_draft_submitted',
+  'final_content_approved', 'links_submitted', 'report_delivered',
+  'payment_processed', 'other',
+] as const
+export type MilestoneType = (typeof MILESTONE_TYPES)[number]
+
+export const MILESTONE_TYPE_LABEL: Record<MilestoneType, string> = {
+  brief_sent: 'Brief trimis',
+  materials_approved: 'Materiale aprobate',
+  content_draft_submitted: 'Draft conținut primit',
+  final_content_approved: 'Conținut final aprobat',
+  links_submitted: 'Link-uri trimise',
+  report_delivered: 'Raport livrat',
+  payment_processed: 'Plată procesată',
+  other: 'Altul',
+}
+
+export const MILESTONE_RESPONSIBLES = [
+  'account_manager', 'influencer', 'brand', 'other',
+] as const
+export type MilestoneResponsible = (typeof MILESTONE_RESPONSIBLES)[number]
+
+export const MILESTONE_RESPONSIBLE_LABEL: Record<MilestoneResponsible, string> = {
+  account_manager: 'Account manager',
+  influencer: 'Influencer',
+  brand: 'Brand',
+  other: 'Altul',
+}
+
+export type CampaignMilestone = {
+  id: string
+  campaign_id: string
+  type: MilestoneType
+  name: string | null
+  due_date: string
+  responsible: MilestoneResponsible
+  responsible_name: string | null
+  completed_at: string | null
+  completed_by: string | null
+  notes: string | null
+  position: number
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
