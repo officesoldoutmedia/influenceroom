@@ -40,6 +40,7 @@ export type FiscalData = {
 }
 
 import type { SocialHandles } from './social'
+import type { RateCards } from '@/lib/rate-cards/types'
 
 export type Influencer = {
   id: string
@@ -51,10 +52,7 @@ export type Influencer = {
   language: string | null
   location_city: string | null
   location_country: string | null
-  rate_post: number | null
-  rate_story: number | null
-  rate_reel: number | null
-  rate_video: number | null
+  rate_cards: RateCards
   contact_email: string | null
   contact_phone: string | null
   agent_name: string | null

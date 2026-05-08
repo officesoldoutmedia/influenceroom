@@ -6,6 +6,7 @@ import {
   type Platform,
   type SocialHandles,
 } from './social'
+import { isValidRateType, type RateCard, type RateCards } from '@/lib/rate-cards/types'
 
 export type InfluencerInput = {
   name?: string
@@ -16,10 +17,10 @@ export type InfluencerInput = {
   language?: string | null
   location_city?: string | null
   location_country?: string | null
-  rate_post?: number | null
-  rate_story?: number | null
-  rate_reel?: number | null
-  rate_video?: number | null
+  rate_cards?: Record<string, unknown>
+  // Legacy single-numeric rates were dropped in migration 035. Inputs that
+  // still send these are silently ignored (they were only ever populated for
+  // SPEAK and the migration moved that data into rate_cards.instagram).
   contact_email?: string | null
   contact_phone?: string | null
   agent_name?: string | null
@@ -34,6 +35,42 @@ export type InfluencerInput = {
 export type ValidateResult =
   | { ok: true; data: Record<string, unknown> }
   | { ok: false; error: string }
+
+// Whitelist-validate rate_cards. Strips empty platforms / null+empty values
+// so the payload landing in DB is already shaped like jsonb_strip_nulls would
+// produce. Reject unknown platforms or rate types per platform with a typed
+// error code so the UI can pinpoint the offending input.
+function validateRateCards(raw: Record<string, unknown>): RateCards | { error: string } {
+  const out: RateCards = {}
+  for (const platform of Object.keys(raw)) {
+    if (!(PLATFORMS as readonly string[]).includes(platform)) {
+      return { error: `invalid_rate_platform_${platform}` }
+    }
+    const card = raw[platform]
+    if (card === null || card === undefined) continue
+    if (typeof card !== 'object' || Array.isArray(card)) {
+      return { error: `invalid_rate_card_${platform}` }
+    }
+    const cleaned: RateCard = {}
+    for (const [rateType, value] of Object.entries(card as Record<string, unknown>)) {
+      if (!isValidRateType(platform as Platform, rateType)) {
+        return { error: `invalid_rate_type_${platform}_${rateType}` }
+      }
+      // Accept null / '' / undefined as "clear this rate" → drop the key.
+      if (value === null || value === undefined || (value as unknown) === '') continue
+      // Allow numeric strings from form inputs.
+      const num = typeof value === 'number' ? value : Number(value)
+      if (!Number.isFinite(num) || num < 0) {
+        return { error: `invalid_rate_value_${platform}_${rateType}` }
+      }
+      cleaned[rateType] = num
+    }
+    if (Object.keys(cleaned).length > 0) {
+      out[platform as Platform] = cleaned
+    }
+  }
+  return out
+}
 
 function validateSocialHandles(raw: Record<string, unknown>): SocialHandles | { error: string } {
   const out: SocialHandles = {}
@@ -93,17 +130,10 @@ export function validateAndNormalize(body: InfluencerInput, partial = false): Va
   if (body.language !== undefined) out.language = body.language || 'ro'
   if (body.location_city !== undefined) out.location_city = body.location_city?.trim() || null
   if (body.location_country !== undefined) out.location_country = body.location_country?.trim() || 'Romania'
-  for (const k of ['rate_post', 'rate_story', 'rate_reel', 'rate_video'] as const) {
-    if (body[k] !== undefined) {
-      const v = body[k]
-      if (v === null || v === undefined || (v as unknown) === '') {
-        out[k] = null
-      } else if (typeof v === 'number' && Number.isFinite(v) && v >= 0) {
-        out[k] = v
-      } else {
-        return { ok: false, error: `invalid_${k}` }
-      }
-    }
+  if (body.rate_cards !== undefined) {
+    const result = validateRateCards(body.rate_cards ?? {})
+    if ('error' in result) return { ok: false, error: result.error }
+    out.rate_cards = result
   }
   if (body.contact_email !== undefined) {
     const e = body.contact_email?.trim() || null
