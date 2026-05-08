@@ -108,7 +108,13 @@ Migrations 030–034.
 - `influencer_scores` (one row per influencer, `UNIQUE(influencer_id)`) —
   4 manual fields (`score_engagement_rate`, `score_cpv`,
   `score_audience_ro`, `score_deliverable_quality`), 2 auto fields
-  (`score_punctuality`, `score_collaboration_history`), derived
+  (`score_punctuality`, `score_collaboration_history`) — all six are
+  `numeric(5,2)` since migration 037 (Oana feedback 2026-05-08), which
+  means PostgREST returns them as **strings** (e.g. `"87.50"`) so the
+  client coerces via `coerceScore()` at read-time. `total_score` stays
+  `integer` — `recalc_influencer_score` rounds the weighted average so
+  badges and category banding use whole numbers; per-criterion scores
+  retain decimals for finer manual control. Derived
   `total_score` + `category` + `explanation`, audit (`updated_by/at`,
   `last_calculated_at`).
 - `influencer_score_history` — append-only audit. One row per

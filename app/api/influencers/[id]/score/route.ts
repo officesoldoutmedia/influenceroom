@@ -83,7 +83,9 @@ export async function PATCH(
     return NextResponse.json({ ok: false, error: 'invalid_body' }, { status: 400 })
   }
 
-  // Validate each provided manual field is null or 0..100.
+  // Validate each provided manual field is null or 0..100. Decimals are
+  // accepted (the columns are numeric(5,2) since migration 037); we round
+  // to 2 decimals here so the stored value matches what the UI shows.
   const update: Record<string, number | null> = {}
   for (const f of MANUAL_FIELDS) {
     if (!(f in body)) continue
@@ -92,10 +94,10 @@ export async function PATCH(
       update[f] = null
       continue
     }
-    if (typeof v !== 'number' || !Number.isFinite(v) || v < 0 || v > 100 || !Number.isInteger(v)) {
+    if (typeof v !== 'number' || !Number.isFinite(v) || v < 0 || v > 100) {
       return NextResponse.json({ ok: false, error: 'invalid_value', field: f }, { status: 422 })
     }
-    update[f] = v
+    update[f] = Math.round(v * 100) / 100
   }
   if (Object.keys(update).length === 0) {
     return NextResponse.json({ ok: false, error: 'no_fields' }, { status: 400 })

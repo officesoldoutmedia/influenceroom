@@ -41,9 +41,19 @@ function dbField(c: ScoringCriterion): keyof InfluencerScore {
   }
 }
 
+// PostgREST returns numeric columns as strings (e.g. "87.50") to preserve
+// arbitrary precision. After migration 037 the score_* columns are numeric,
+// so we coerce at read-time. This also handles the legacy integer-encoded
+// values from before the migration without a hiccup.
+function coerceScore(raw: unknown): number | null {
+  if (raw === null || raw === undefined) return null
+  const n = typeof raw === 'number' ? raw : Number(raw)
+  return Number.isFinite(n) ? n : null
+}
+
 function valueOf(score: InfluencerScore | null, c: ScoringCriterion): number | null {
   if (!score) return null
-  return (score[dbField(c)] as number | null) ?? null
+  return coerceScore(score[dbField(c)])
 }
 
 function formatRelative(iso: string): string {
@@ -174,7 +184,7 @@ export function ScoreSection({
                 </span>
               </div>
               <div className="text-xl font-semibold tabular-nums text-stone-900">
-                {v == null ? '—' : v}
+                {v == null ? '—' : formatScoreShort(v)}
                 {v != null && <span className="text-sm font-normal text-stone-400 ml-1">/100</span>}
               </div>
               <div className="mt-2 h-1.5 bg-stone-100 rounded-full overflow-hidden">
@@ -242,6 +252,113 @@ export function ScoreSection({
   )
 }
 
+// Two decimals max — matches the column scale (numeric(5,2)).
+function clampScore(n: number): number {
+  if (!Number.isFinite(n)) return 0
+  const clamped = Math.min(100, Math.max(0, n))
+  return Math.round(clamped * 100) / 100
+}
+
+// Strip useless trailing zeros so 87.50 displays as 87.5 but 87 stays 87,
+// and 0.31 stays 0.31. Used in the slider's value-readout chip.
+function formatScoreShort(n: number): string {
+  return Number(n.toFixed(2)).toString()
+}
+
+function CriterionInput({
+  label,
+  help,
+  value,
+  onChange,
+}: {
+  label: string
+  help: string
+  value: number | null
+  onChange: (next: number | null) => void
+}) {
+  // The number input keeps its own draft string so users can type "0.31"
+  // without the controlled input fighting them between keystrokes (e.g.
+  // re-formatting "0." to "0" and forcing them to retype). Slider drags
+  // update the draft via setDraft so the number input follows visually;
+  // reset button clears both.
+  const [draft, setDraft] = useState<string>(value == null ? '' : String(value))
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1 gap-2">
+        <label className="text-sm font-medium text-stone-800">{label}</label>
+        <div className="flex items-center gap-2">
+          <input
+            type="number"
+            min={0}
+            max={100}
+            step={0.01}
+            inputMode="decimal"
+            value={draft}
+            onChange={(e) => {
+              const next = e.target.value
+              setDraft(next)
+              if (next === '') {
+                onChange(null)
+                return
+              }
+              const num = Number(next)
+              if (Number.isFinite(num)) onChange(clampScore(num))
+            }}
+            onBlur={() => {
+              if (draft === '') {
+                onChange(null)
+                return
+              }
+              const num = Number(draft)
+              if (!Number.isFinite(num)) {
+                setDraft(value == null ? '' : String(value))
+                return
+              }
+              const cleaned = clampScore(num)
+              setDraft(String(cleaned))
+              onChange(cleaned)
+            }}
+            placeholder="—"
+            className="w-20 px-2 py-1 text-sm tabular-nums text-right border border-stone-300 rounded-md focus:outline-none focus:border-brand-700 focus:ring-2 focus:ring-brand-500/20"
+            aria-label={`${label} (0..100, două zecimale)`}
+          />
+          <button
+            type="button"
+            onClick={() => {
+              setDraft('')
+              onChange(null)
+            }}
+            className="text-[11px] text-stone-500 hover:text-rose-600"
+          >
+            resetează
+          </button>
+        </div>
+      </div>
+      <div className="flex items-center gap-3">
+        <input
+          type="range"
+          min={0}
+          max={100}
+          step={0.1}
+          value={value ?? 0}
+          onChange={(e) => {
+            const num = clampScore(Number(e.target.value))
+            setDraft(String(num))
+            onChange(num)
+          }}
+          className="flex-1 accent-brand-700"
+          aria-label={`${label} slider`}
+        />
+        <span className="w-12 text-[11px] text-stone-400 tabular-nums text-right">
+          {value == null ? '—' : formatScoreShort(value)}
+        </span>
+      </div>
+      <p className="text-[11px] text-stone-500 mt-1">{help}</p>
+    </div>
+  )
+}
+
 function ManualEditDialog({
   influencerId,
   score,
@@ -254,10 +371,10 @@ function ManualEditDialog({
   onSaved: (s: InfluencerScore) => void
 }) {
   const [values, setValues] = useState<Record<ManualKey, number | null>>({
-    score_engagement_rate: score?.score_engagement_rate ?? null,
-    score_cpv: score?.score_cpv ?? null,
-    score_audience_ro: score?.score_audience_ro ?? null,
-    score_deliverable_quality: score?.score_deliverable_quality ?? null,
+    score_engagement_rate: coerceScore(score?.score_engagement_rate),
+    score_cpv: coerceScore(score?.score_cpv),
+    score_audience_ro: coerceScore(score?.score_audience_ro),
+    score_deliverable_quality: coerceScore(score?.score_deliverable_quality),
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -293,37 +410,13 @@ function ManualEditDialog({
           const k = MANUAL_DB_FIELD[c as keyof typeof MANUAL_DB_FIELD]
           const v = values[k]
           return (
-            <div key={c}>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-sm font-medium text-stone-800">
-                  {CRITERION_LABELS[c]}
-                </label>
-                <span className="text-sm tabular-nums text-stone-700">
-                  {v == null ? '—' : v}
-                </span>
-              </div>
-              <div className="flex items-center gap-3">
-                <input
-                  type="range"
-                  min={0}
-                  max={100}
-                  step={1}
-                  value={v ?? 0}
-                  onChange={(e) =>
-                    setValues({ ...values, [k]: Number(e.target.value) })
-                  }
-                  className="flex-1"
-                />
-                <button
-                  type="button"
-                  onClick={() => setValues({ ...values, [k]: null })}
-                  className="text-[11px] text-stone-500 hover:text-rose-600"
-                >
-                  resetează
-                </button>
-              </div>
-              <p className="text-[11px] text-stone-500 mt-1">{CRITERION_HELP[c]}</p>
-            </div>
+            <CriterionInput
+              key={c}
+              label={CRITERION_LABELS[c]}
+              help={CRITERION_HELP[c]}
+              value={v}
+              onChange={(next) => setValues({ ...values, [k]: next })}
+            />
           )
         })}
 
