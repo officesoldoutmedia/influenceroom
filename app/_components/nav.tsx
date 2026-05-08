@@ -21,7 +21,6 @@ export function Nav({ name, role }: { name: string; role: NavRole }) {
     { href: '/influencers', label: 'Influenceri' },
     { href: '/brands', label: 'Branduri' },
     { href: '/profile', label: 'Profil' },
-    { href: '/admin/templates', label: 'Templates', show: role === 'owner' || role === 'manager' },
     { href: '/admin/notifications', label: 'Notificări', show: role === 'owner' },
     { href: '/admin/broadcast', label: 'Broadcast', show: role === 'owner' },
     { href: '/admin/team', label: 'Echipă', show: role === 'owner' },

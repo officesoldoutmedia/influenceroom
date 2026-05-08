@@ -10,7 +10,6 @@ export type TaskPriority = (typeof TASK_PRIORITIES)[number]
 export type Campaign = {
   id: string
   brand_id: string
-  template_id: string | null
   name: string
   brief: string | null
   status: CampaignStatus
@@ -56,30 +55,6 @@ export type TaskGroup = {
   due_date: string | null
   created_at: string
   tasks: Task[]
-}
-
-export type TemplateTaskDef = {
-  title: string
-  role_default?: string
-  priority?: TaskPriority
-  description?: string | null
-}
-
-export type TemplateGroupDef = {
-  name: string
-  position: number
-  due_offset_days: number
-  tasks: TemplateTaskDef[]
-}
-
-export type CampaignTemplate = {
-  id: string
-  name: string
-  description: string | null
-  default_duration_days: number
-  default_task_groups: TemplateGroupDef[]
-  active: boolean
-  created_at: string
 }
 
 export const JUNCTION_STATUSES = [

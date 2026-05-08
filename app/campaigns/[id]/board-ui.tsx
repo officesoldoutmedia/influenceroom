@@ -223,9 +223,21 @@ export function BoardUI({
   return (
     <>
       {groups.length === 0 && tasks.length === 0 && (
-        <p className="text-sm text-stone-400 mb-4">
-          Niciun task. Adaugă un grup pentru a începe.
-        </p>
+        <div className="bg-white border border-stone-200 rounded-xl py-10 px-6 sm:py-14 text-center mb-6">
+          <p className="font-display text-lg text-stone-900 mb-1">Niciun grup adăugat încă</p>
+          <p className="text-sm text-stone-500 mb-5">
+            Campania pornește goală. Crează primul grup și adaugă taskuri pentru ce trebuie făcut.
+          </p>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => setAddingGroup(true)}
+              className="inline-flex items-center justify-center h-10 px-4 rounded-md bg-brand-700 text-white text-sm font-medium hover:bg-brand-800"
+            >
+              + Adaugă primul grup
+            </button>
+          )}
+        </div>
       )}
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>

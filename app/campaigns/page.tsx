@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
 import { Nav, type NavRole } from '@/app/_components/nav'
 import { listCampaigns } from '@/lib/campaigns/search'
-import { CampaignsUI, type SimpleBrand, type SimpleMember, type SimpleTemplate } from './campaigns-ui'
+import { CampaignsUI, type SimpleBrand, type SimpleMember } from './campaigns-ui'
 
 export const dynamic = 'force-dynamic'
 
@@ -39,11 +39,10 @@ export default async function CampaignsPage({
     { auth: { persistSession: false, autoRefreshToken: false } },
   )
 
-  const [{ data: me }, { data: brands }, { data: members }, { data: templates }] = await Promise.all([
+  const [{ data: me }, { data: brands }, { data: members }] = await Promise.all([
     supabase.from('team_members').select('name').eq('id', userId).maybeSingle(),
     supabase.from('brands').select('id, name').eq('status', 'active').order('name'),
     supabase.from('team_members').select('id, name, role').eq('active', true).order('name'),
-    supabase.from('campaign_templates').select('id, name, default_task_groups').eq('active', true).order('name'),
   ])
 
   const filters = {
@@ -70,7 +69,6 @@ export default async function CampaignsPage({
             initialFilters={filters}
             brands={(brands ?? []) as SimpleBrand[]}
             members={(members ?? []) as SimpleMember[]}
-            templates={(templates ?? []) as SimpleTemplate[]}
             currentUserId={userId}
             role={role}
           />

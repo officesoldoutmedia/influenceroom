@@ -31,7 +31,6 @@ export async function GET(req: NextRequest) {
 
 type CreateBody = {
   brand_id?: string
-  template_id?: string | null
   name?: string
   start_date?: string | null
   end_date?: string | null
@@ -60,9 +59,8 @@ export async function POST(req: NextRequest) {
   const createdBy = h.get('x-user-id')
 
   const supabase = admin()
-  const { data, error } = await supabase.rpc('create_campaign_from_template', {
+  const { data, error } = await supabase.rpc('create_campaign', {
     p_brand_id: body.brand_id,
-    p_template_id: body.template_id ?? null,
     p_name: body.name.trim(),
     p_start_date: body.start_date ?? null,
     p_end_date: body.end_date ?? null,

@@ -7,7 +7,6 @@ import {
   CAMPAIGN_STATUSES,
   type CampaignStatus,
   type CampaignWithJoins,
-  type TemplateGroupDef,
 } from '@/lib/campaigns/types'
 import { EmptyState, Button } from '@/lib/ui'
 
@@ -23,7 +22,6 @@ type Role = 'owner' | 'manager' | 'account' | 'intern'
 
 export type SimpleBrand = { id: string; name: string }
 export type SimpleMember = { id: string; name: string; role: string }
-export type SimpleTemplate = { id: string; name: string; default_task_groups: TemplateGroupDef[] }
 
 const STATUS_BADGE: Record<CampaignStatus, string> = {
   draft: 'bg-stone-200 text-stone-700',
@@ -51,7 +49,6 @@ export function CampaignsUI({
   initialFilters,
   brands,
   members,
-  templates,
   currentUserId,
   role,
 }: {
@@ -62,7 +59,6 @@ export function CampaignsUI({
   initialFilters: Filters
   brands: SimpleBrand[]
   members: SimpleMember[]
-  templates: SimpleTemplate[]
   currentUserId: string
   role: Role
 }) {
@@ -201,7 +197,6 @@ export function CampaignsUI({
         <NewCampaignModal
           brands={brands}
           members={members}
-          templates={templates}
           currentUserId={currentUserId}
           role={role}
           onClose={() => setShowNew(false)}
@@ -373,21 +368,9 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   )
 }
 
-function maxOffsetDays(groups: TemplateGroupDef[]): number | null {
-  if (!groups.length) return null
-  return groups.reduce((max, g) => Math.max(max, g.due_offset_days), -Infinity)
-}
-
-function addDaysISO(iso: string, days: number): string {
-  const d = new Date(iso + 'T00:00:00Z')
-  d.setUTCDate(d.getUTCDate() + days)
-  return d.toISOString().slice(0, 10)
-}
-
 function NewCampaignModal({
   brands,
   members,
-  templates,
   currentUserId,
   role,
   onClose,
@@ -395,18 +378,15 @@ function NewCampaignModal({
 }: {
   brands: SimpleBrand[]
   members: SimpleMember[]
-  templates: SimpleTemplate[]
   currentUserId: string
   role: Role
   onClose: () => void
   onCreated: (id: string) => void
 }) {
   const [brandId, setBrandId] = useState('')
-  const [templateId, setTemplateId] = useState('')
   const [name, setName] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
-  const [endDateTouched, setEndDateTouched] = useState(false)
   const [budget, setBudget] = useState('')
   const [deliverables, setDeliverables] = useState('')
   const [brief, setBrief] = useState('')
@@ -419,21 +399,6 @@ function NewCampaignModal({
     ? members
     : members.filter((m) => m.id === currentUserId)
 
-  const tpl = templates.find((t) => t.id === templateId)
-  const tplMaxOffset = tpl ? maxOffsetDays(tpl.default_task_groups) : null
-
-  // Auto-fill end_date when template + start_date set, unless user has touched
-  useEffect(() => {
-    if (endDateTouched) return
-    if (!startDate) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setEndDate('')
-      return
-    }
-    if (tplMaxOffset == null) return
-    setEndDate(addDaysISO(startDate, tplMaxOffset))
-  }, [startDate, tplMaxOffset, endDateTouched])
-
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     setBusy(true)
@@ -443,7 +408,6 @@ function NewCampaignModal({
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         brand_id: brandId,
-        template_id: templateId || null,
         name,
         start_date: startDate || null,
         end_date: endDate || null,
@@ -463,34 +427,23 @@ function NewCampaignModal({
   return (
     <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 bg-stone-900/40 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-xl my-8" onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-lg font-semibold text-stone-900 mb-4">New campaign</h2>
+        <h2 className="font-display text-xl text-stone-900 mb-4">Campanie nouă</h2>
         <form onSubmit={submit} className="space-y-3">
           <Field label="Brand *">
             <select value={brandId} onChange={(e) => setBrandId(e.target.value)} required className={inputCls}>
-              <option value="">— select brand —</option>
+              <option value="">— alege brand —</option>
               {brands.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
             </select>
           </Field>
-          <Field label="Template">
-            <select value={templateId} onChange={(e) => setTemplateId(e.target.value)} className={inputCls}>
-              <option value="">No template — blank</option>
-              {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-            </select>
-          </Field>
-          <Field label="Name *">
+          <Field label="Nume *">
             <input value={name} onChange={(e) => setName(e.target.value)} required className={inputCls} />
           </Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Start date (publish / T+0)">
+            <Field label="Start (T+0)">
               <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className={inputCls} />
             </Field>
-            <Field label="End date">
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => { setEndDate(e.target.value); setEndDateTouched(true) }}
-                className={inputCls}
-              />
+            <Field label="Final">
+              <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className={inputCls} />
             </Field>
           </div>
           <div className="grid grid-cols-2 gap-3">
