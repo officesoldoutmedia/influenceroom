@@ -20,6 +20,15 @@ import { DetailUI } from './detail-ui'
 import { ScoreSection } from './score-section'
 import { canReadInfluencer, isOwnerOrManager } from '@/lib/auth/scope'
 import type { InfluencerScore, ScoreHistoryEntry } from '@/lib/scoring/types'
+import {
+  RATE_TYPES_PER_PLATFORM,
+  RATE_TYPE_LABELS,
+  countRatesForPlatform,
+  totalRatesForPlatform,
+  totalRateCount,
+  type RateCard,
+  type RateCards,
+} from '@/lib/rate-cards/types'
 
 export const dynamic = 'force-dynamic'
 
@@ -208,14 +217,7 @@ export default async function InfluencerDetailPage({
             canEdit={canWrite}
           />
 
-          <Section title="Rates (EUR)">
-            <div className="grid grid-cols-4 gap-4 text-sm">
-              <RateBlock label="Post" value={i.rate_post} />
-              <RateBlock label="Story" value={i.rate_story} />
-              <RateBlock label="Reel" value={i.rate_reel} />
-              <RateBlock label="Video" value={i.rate_video} />
-            </div>
-          </Section>
+          <RateCardsSection rateCards={i.rate_cards ?? {}} canEdit={canWrite} influencerId={id} />
 
           <Section title="Contact">
             <div className="grid grid-cols-2 gap-3 text-sm">
@@ -270,11 +272,79 @@ function Info({ label, value }: { label: string; value?: string | null }) {
   )
 }
 
-function RateBlock({ label, value }: { label: string; value: number | null }) {
+function RateCardsSection({
+  rateCards,
+  canEdit,
+  influencerId,
+}: {
+  rateCards: RateCards
+  canEdit: boolean
+  influencerId: string
+}) {
+  const total = totalRateCount(rateCards)
   return (
-    <div className="bg-stone-50 rounded-lg p-3">
-      <div className="text-xs text-stone-500 mb-1">{label}</div>
-      <div className="text-stone-900 font-medium tabular-nums">{formatEur(value)}</div>
+    <Section title={`Rate Cards${total > 0 ? ` (${total} activate)` : ''}`}>
+      {total === 0 ? (
+        <p className="text-sm text-stone-400">
+          Niciun rate card completat.
+          {canEdit && (
+            <>
+              {' '}
+              <Link href={`/influencers/${influencerId}`} className="text-brand-700 hover:underline">
+                Editează profilul
+              </Link>{' '}
+              pentru a adăuga.
+            </>
+          )}
+        </p>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {PLATFORMS.map((p) => {
+            const card = rateCards[p]
+            if (!card || countRatesForPlatform(card) === 0) return null
+            return <PlatformRateTable key={p} platform={p} card={card} />
+          })}
+        </div>
+      )}
+    </Section>
+  )
+}
+
+function PlatformRateTable({ platform, card }: { platform: Platform; card: RateCard }) {
+  // Walk the canonical rate-type order so the table is consistent across
+  // influencers and platforms (UR-30 always last, etc).
+  const rows = (RATE_TYPES_PER_PLATFORM[platform] as readonly string[])
+    .map((rt) => ({ rt, value: card[rt] }))
+    .filter((r): r is { rt: string; value: number } => typeof r.value === 'number')
+  const subtotal = totalRatesForPlatform(card)
+  return (
+    <div className="border border-stone-200 rounded-lg overflow-hidden">
+      <div className="px-3 py-2 bg-stone-50 border-b border-stone-200 flex items-center justify-between">
+        <span className="text-sm font-medium text-stone-800">{PLATFORM_LABEL[platform]}</span>
+        <span className="text-[12px] text-stone-500">
+          {rows.length} rate{rows.length === 1 ? '' : '-uri'}
+        </span>
+      </div>
+      <table className="w-full text-sm">
+        <tbody className="divide-y divide-stone-100">
+          {rows.map(({ rt, value }) => (
+            <tr key={rt}>
+              <td className="px-3 py-2 text-stone-700">{RATE_TYPE_LABELS[rt] ?? rt}</td>
+              <td className="px-3 py-2 text-stone-900 font-medium tabular-nums text-right">
+                {formatEur(value)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+        <tfoot>
+          <tr className="bg-stone-50 border-t border-stone-200">
+            <td className="px-3 py-2 text-[12px] text-stone-500 uppercase tracking-wide">Subtotal</td>
+            <td className="px-3 py-2 text-stone-900 font-medium tabular-nums text-right">
+              {formatEur(subtotal)}
+            </td>
+          </tr>
+        </tfoot>
+      </table>
     </div>
   )
 }

@@ -177,6 +177,46 @@ input source for those 4 columns.
   handler — OpenNext only exports `fetch`). Account currently uses 6 of 30
   cron slots.
 
+## Rate cards model (Sprint 13a)
+Per-platform tariffs replacing the old flat `rate_post/story/reel/video`
+columns (which were ambiguous — "video" was sometimes a Reel, sometimes
+Usage Rights). Migration 035 added `influencers.rate_cards jsonb NOT
+NULL DEFAULT '{}'` with a GIN index, backfilled SPEAK's existing data
+into `rate_cards.instagram` (`post→photo`, `story→story_set`,
+`reel→video`, `video→ur_30d`), and dropped the four legacy columns.
+
+**Shape:**
+```jsonc
+{
+  "facebook":  { "photo": n, "video": n, "story_set": n, "ur_30d": n },
+  "instagram": { "photo": n, "video": n, "story_set": n, "ur_30d": n },
+  "tiktok":    { "video": n, "boost_7d": n, "boost_15d": n,
+                 "boost_30d": n, "ur_30d": n },
+  "youtube":   { "video_insert": n, "shorts": n, "dedicated": n,
+                 "ur_30d": n }
+}
+```
+All keys optional; `n` is EUR (numeric) or absent. UR-30 = Usage Rights
+30 days (right to use the influencer's content in brand assets) and is
+the only universal rate type across platforms.
+
+**Validation** lives in `lib/rate-cards/types.ts → RATE_TYPES_PER_PLATFORM`
+and `lib/influencers/validate.ts → validateRateCards`. The DB column
+itself is permissive (no CHECK on keys) so adding new rate types doesn't
+need a migration — just extend `RATE_TYPES_PER_PLATFORM` and the API
+will accept them. Unknown platforms / rate types per platform / negative
+values get typed errors (`invalid_rate_platform_X`,
+`invalid_rate_type_X_Y`, `invalid_rate_value_X_Y`) so the form can
+pinpoint the offender.
+
+**UI:** the form has a collapsible card per platform (auto-expanded if
+any rate is set). The detail page renders one table per non-empty
+platform with rate→fee rows + subtotal, walking
+`RATE_TYPES_PER_PLATFORM` so order is canonical (UR-30 always last).
+
+**Sprint 13b (next)** ships PDF export from rate_cards (React-PDF +
+Supabase Storage bucket `rate-cards`).
+
 ## Known limitations (deferred to Phase 2 / future sprints)
 - **Custom domain not configured** — using default `*.workers.dev` URL.
 - **No file uploads** (briefs/contracts/screenshots) — Supabase Storage with

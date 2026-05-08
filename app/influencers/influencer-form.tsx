@@ -23,6 +23,16 @@ import {
   type FiscalData,
   type ManagerSummary,
 } from '@/lib/influencers/types'
+import {
+  RATE_TYPES_PER_PLATFORM,
+  RATE_TYPE_LABELS,
+  RATE_TYPE_DESCRIPTIONS,
+  type RateCards,
+} from '@/lib/rate-cards/types'
+
+// Form-side mirror of RateCards: values are strings because <input type=number>
+// gives us strings until we coerce on submit. Empty string == "not set".
+type RateCardsForm = Partial<Record<Platform, Partial<Record<string, string>>>>
 
 export type FormValues = {
   name: string
@@ -33,10 +43,7 @@ export type FormValues = {
   location_country: string
   niche_tags: string[]
   social_handles: SocialHandles
-  rate_post: string
-  rate_story: string
-  rate_reel: string
-  rate_video: string
+  rate_cards: RateCardsForm
   contact_email: string
   contact_phone: string
   agent_name: string
@@ -58,10 +65,7 @@ export function emptyForm(defaultManagerId: string = ''): FormValues {
     location_country: 'Romania',
     niche_tags: [],
     social_handles: {},
-    rate_post: '',
-    rate_story: '',
-    rate_reel: '',
-    rate_video: '',
+    rate_cards: {},
     contact_email: '',
     contact_phone: '',
     agent_name: '',
@@ -84,10 +88,7 @@ export function influencerToForm(i: Influencer): FormValues {
     location_country: i.location_country ?? 'Romania',
     niche_tags: i.niche_tags ?? [],
     social_handles: i.social_handles ?? {},
-    rate_post: i.rate_post == null ? '' : String(i.rate_post),
-    rate_story: i.rate_story == null ? '' : String(i.rate_story),
-    rate_reel: i.rate_reel == null ? '' : String(i.rate_reel),
-    rate_video: i.rate_video == null ? '' : String(i.rate_video),
+    rate_cards: rateCardsToForm(i.rate_cards ?? {}),
     contact_email: i.contact_email ?? '',
     contact_phone: i.contact_phone ?? '',
     agent_name: i.agent_name ?? '',
@@ -100,8 +101,42 @@ export function influencerToForm(i: Influencer): FormValues {
   }
 }
 
+function rateCardsToForm(rc: RateCards): RateCardsForm {
+  const out: RateCardsForm = {}
+  for (const platform of PLATFORMS) {
+    const card = rc[platform]
+    if (!card) continue
+    const formCard: Partial<Record<string, string>> = {}
+    for (const rt of RATE_TYPES_PER_PLATFORM[platform] as readonly string[]) {
+      const v = card[rt]
+      if (typeof v === 'number') formCard[rt] = String(v)
+    }
+    if (Object.keys(formCard).length > 0) out[platform] = formCard
+  }
+  return out
+}
+
+function formToRateCards(rcf: RateCardsForm): RateCards {
+  // Mirrors the API validator: drops empty/missing values, only keeps platforms
+  // with at least one positive rate. The server is the source of truth and
+  // re-validates, but pre-cleaning here keeps the wire payload compact.
+  const out: RateCards = {}
+  for (const platform of PLATFORMS) {
+    const card = rcf[platform]
+    if (!card) continue
+    const cleaned: Record<string, number> = {}
+    for (const rt of RATE_TYPES_PER_PLATFORM[platform] as readonly string[]) {
+      const s = card[rt]
+      if (s == null || s === '') continue
+      const n = Number(s)
+      if (Number.isFinite(n) && n >= 0) cleaned[rt] = n
+    }
+    if (Object.keys(cleaned).length > 0) out[platform] = cleaned
+  }
+  return out
+}
+
 export function formToPayload(f: FormValues): Record<string, unknown> {
-  const numOrNull = (s: string) => (s === '' ? null : Number(s))
   // Strip empty handles, normalize the rest.
   const social: SocialHandles = {}
   for (const k of PLATFORMS) {
@@ -128,10 +163,7 @@ export function formToPayload(f: FormValues): Record<string, unknown> {
     location_country: f.location_country.trim() || 'Romania',
     niche_tags: f.niche_tags,
     social_handles: social,
-    rate_post: numOrNull(f.rate_post),
-    rate_story: numOrNull(f.rate_story),
-    rate_reel: numOrNull(f.rate_reel),
-    rate_video: numOrNull(f.rate_video),
+    rate_cards: formToRateCards(f.rate_cards),
     contact_email: f.contact_email.trim() || null,
     contact_phone: f.contact_phone.trim() || null,
     agent_name: f.agent_name.trim() || null,
@@ -415,20 +447,12 @@ export function InfluencerFormFields({
         </p>
       </div>
 
-      <h3 className={sectionTitle}>Rates (EUR)</h3>
-      <div className="grid grid-cols-4 gap-3">
-        {(['rate_post', 'rate_story', 'rate_reel', 'rate_video'] as const).map((k) => (
-          <Field key={k} label={`${k.replace('rate_', '')} (€)`}>
-            <input
-              type="number"
-              min={0}
-              value={form[k]}
-              onChange={(e) => set({ ...form, [k]: e.target.value })}
-              className={inputCls}
-            />
-          </Field>
-        ))}
-      </div>
+      <h3 className={sectionTitle}>Rate Cards (EUR)</h3>
+      <p className="text-[12px] text-stone-500 -mt-1 mb-2">
+        Tarife per platformă. Lasă gol dacă nu se aplică. UR-30 = drept de
+        utilizare conținut în brand assets pentru 30 zile.
+      </p>
+      <RateCardsFields form={form} set={set} />
 
       <h3 className={sectionTitle}>Contact</h3>
       <div className="grid grid-cols-2 gap-3">
@@ -508,6 +532,121 @@ export function InfluencerFormFields({
       <Field label="Notes">
         <textarea value={form.notes} onChange={(e) => set({ ...form, notes: e.target.value })} className={textareaCls} />
       </Field>
+    </div>
+  )
+}
+
+function RateCardsFields({
+  form,
+  set,
+}: {
+  form: FormValues
+  set: (f: FormValues) => void
+}) {
+  // Auto-expand platforms that already have at least one rate. Closed
+  // platforms hide their inputs but preserve any value already typed in this
+  // session via React state — toggling collapse only affects visibility.
+  const [expanded, setExpanded] = useState<Set<Platform>>(
+    () =>
+      new Set(
+        PLATFORMS.filter((p) => {
+          const card = form.rate_cards[p]
+          return card && Object.values(card).some((v) => v != null && v !== '')
+        }),
+      ),
+  )
+
+  function toggle(p: Platform) {
+    const next = new Set(expanded)
+    if (next.has(p)) next.delete(p)
+    else next.add(p)
+    setExpanded(next)
+  }
+
+  function setRate(p: Platform, rateType: string, val: string) {
+    const card = { ...(form.rate_cards[p] ?? {}) }
+    if (val === '') {
+      delete card[rateType]
+    } else {
+      card[rateType] = val
+    }
+    const nextCards: RateCardsForm = { ...form.rate_cards }
+    if (Object.keys(card).length === 0) {
+      delete nextCards[p]
+    } else {
+      nextCards[p] = card
+    }
+    set({ ...form, rate_cards: nextCards })
+  }
+
+  function isInvalid(val: string): boolean {
+    if (val === '') return false
+    const n = Number(val)
+    return !Number.isFinite(n) || n < 0
+  }
+
+  return (
+    <div className="space-y-2">
+      {PLATFORMS.map((p) => {
+        const types = RATE_TYPES_PER_PLATFORM[p]
+        const card = form.rate_cards[p] ?? {}
+        const filled = Object.values(card).filter((v) => v != null && v !== '').length
+        const isOpen = expanded.has(p)
+        return (
+          <div
+            key={p}
+            className={`border rounded-lg ${isOpen ? 'border-brand-300 bg-brand-50/30' : 'border-stone-200'}`}
+          >
+            <button
+              type="button"
+              onClick={() => toggle(p)}
+              className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left"
+              aria-expanded={isOpen}
+            >
+              <span className="text-sm font-medium text-stone-800">
+                {PLATFORM_LABEL[p]}
+              </span>
+              <span className="flex items-center gap-2 text-[12px] text-stone-500">
+                {filled > 0 ? `${filled} rate${filled === 1 ? '' : '-uri'} completat${filled === 1 ? '' : 'e'}` : 'gol'}
+                <span className="text-stone-400">{isOpen ? '▾' : '▸'}</span>
+              </span>
+            </button>
+            {isOpen && (
+              <div className="px-3 pb-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {types.map((rt) => {
+                  const val = card[rt] ?? ''
+                  const invalid = isInvalid(val)
+                  const desc = RATE_TYPE_DESCRIPTIONS[rt]
+                  return (
+                    <Field key={rt} label={`${RATE_TYPE_LABELS[rt] ?? rt} (€)`}>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          min={0}
+                          step={1}
+                          value={val}
+                          onChange={(e) => setRate(p, rt, e.target.value)}
+                          className={`${invalid ? inputErrorCls : inputCls} pr-8`}
+                          aria-invalid={invalid}
+                        />
+                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[12px] text-stone-400 pointer-events-none">
+                          €
+                        </span>
+                      </div>
+                      {invalid && (
+                        <p className="text-[11px] text-rose-600 mt-1">Valoare invalidă</p>
+                      )}
+                      {desc && (
+                        <p className="text-[11px] text-stone-500 mt-1">{desc}</p>
+                      )}
+                    </Field>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }
