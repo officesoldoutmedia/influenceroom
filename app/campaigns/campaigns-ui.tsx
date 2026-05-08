@@ -8,7 +8,7 @@ import {
   type CampaignStatus,
   type CampaignWithJoins,
 } from '@/lib/campaigns/types'
-import { EmptyState, Button } from '@/lib/ui'
+import { EmptyState, Button, Combobox, type ComboboxItem } from '@/lib/ui'
 
 const STATUS_LABEL: Record<CampaignStatus, string> = {
   draft: 'draft',
@@ -383,7 +383,8 @@ function NewCampaignModal({
   onClose: () => void
   onCreated: (id: string) => void
 }) {
-  const [brandId, setBrandId] = useState('')
+  const [brandId, setBrandId] = useState<string | null>(null)
+  const [brandList, setBrandList] = useState<SimpleBrand[]>(brands)
   const [name, setName] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
@@ -401,6 +402,10 @@ function NewCampaignModal({
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
+    if (!brandId) {
+      setError('Selectează un brand')
+      return
+    }
     setBusy(true)
     setError(null)
     const res = await fetch('/api/campaigns', {
@@ -429,12 +434,30 @@ function NewCampaignModal({
       <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-xl my-8" onClick={(e) => e.stopPropagation()}>
         <h2 className="font-display text-xl text-stone-900 mb-4">Campanie nouă</h2>
         <form onSubmit={submit} className="space-y-3">
-          <Field label="Brand *">
-            <select value={brandId} onChange={(e) => setBrandId(e.target.value)} required className={inputCls}>
-              <option value="">— alege brand —</option>
-              {brands.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-            </select>
-          </Field>
+          <Combobox
+            label="Brand"
+            required
+            placeholder="Caută sau crează brand..."
+            items={brandList.map((b): ComboboxItem => ({ id: b.id, label: b.name }))}
+            value={brandId}
+            onChange={setBrandId}
+            onCreate={async (q) => {
+              const res = await fetch('/api/brands', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ name: q }),
+              })
+              const data = (await res.json().catch(() => ({}))) as {
+                ok?: boolean
+                brand?: { id: string; name: string }
+              }
+              if (!res.ok || !data.brand) return null
+              const created = { id: data.brand.id, name: data.brand.name }
+              setBrandList((prev) => [...prev, created])
+              return { id: created.id, label: created.name }
+            }}
+            createLabel={(q) => <>+ Crează brand nou: <strong>{q}</strong></>}
+          />
           <Field label="Nume *">
             <input value={name} onChange={(e) => setName(e.target.value)} required className={inputCls} />
           </Field>
