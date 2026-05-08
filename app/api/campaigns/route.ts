@@ -69,7 +69,6 @@ export async function POST(req: NextRequest) {
     p_brief: body.brief?.toString().trim() || null,
     p_owner_id: body.owner_id ?? createdBy,
     p_internal_notes: body.internal_notes?.toString().trim() || null,
-    p_created_by: createdBy,
   })
 
   if (error) {
