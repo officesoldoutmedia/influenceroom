@@ -17,7 +17,6 @@ import { PDFDocument, PDFFont, PDFImage, PDFPage, StandardFonts, rgb } from 'pdf
 import {
   PLATFORMS,
   PLATFORM_LABEL,
-  TIER_LABELS_RANGE,
   primaryHandle,
   type Influencer,
   type Platform,
@@ -28,7 +27,6 @@ import {
   RATE_TYPE_LABELS,
   countRatesForPlatform,
   hasAnyRate,
-  totalRatesForPlatform,
 } from './types'
 import { WORDMARK_ASPECT_RATIO, WORDMARK_PNG_BASE64 } from './wordmark-asset'
 
@@ -161,28 +159,17 @@ function drawCoverPage(doc: PDFDocument, assets: Assets, inf: Influencer): void 
     color: COLORS.obsidian,
   })
 
-  // Tier strap-line below name
-  if (inf.tier) {
-    const tierLabel = TIER_LABELS_RANGE[inf.tier].toUpperCase()
-    const tierWidth = assets.sansBold.widthOfTextAtSize(tierLabel, 11)
-    drawText(page, tierLabel, {
-      x: (PAGE.width - tierWidth) / 2,
-      y: nameY - 24,
-      font: assets.sansBold,
-      size: 11,
-      color: COLORS.brand,
-      tracking: 2,
-    })
-  }
-
-  // Primary handle (e.g. @cartedor) directly under tier
+  // Primary handle (e.g. @cartedor) directly under the name. The tier
+  // strap-line that used to live between name and handle was dropped
+  // (Stefan 2026-05-08) — brands care about platform footprint, not the
+  // internal tier bucket.
   const ph = primaryHandle(inf.social_handles ?? {})
   if (ph) {
     const handleStr = `@${ph.entry.handle} · ${PLATFORM_LABEL[ph.platform]}`
     const handleWidth = assets.sans.widthOfTextAtSize(handleStr, 10)
     drawText(page, handleStr, {
       x: (PAGE.width - handleWidth) / 2,
-      y: nameY - 42,
+      y: nameY - 24,
       font: assets.sans,
       size: 10,
       color: COLORS.textMuted,
@@ -205,12 +192,12 @@ function drawRatePages(doc: PDFDocument, assets: Assets, inf: Influencer): void 
     if (!card || countRatesForPlatform(card) === 0) continue
 
     // Estimate the height the next platform block needs and start a fresh
-    // page if it would clip the footer. Title + spacer + N rows + subtotal +
-    // gap = ~28 + 10*rowCount + 32 pt.
+    // page if it would clip the footer. Title (28) + N rows × 16pt + bottom
+    // gap (16). Subtotal block was dropped, so no extra slack reserved.
     const rowCount = (RATE_TYPES_PER_PLATFORM[platform] as readonly string[]).filter(
       (rt) => typeof card[rt] === 'number',
     ).length
-    const blockHeight = 28 + rowCount * 18 + 36
+    const blockHeight = 28 + rowCount * 16 + 16
     if (cursor - blockHeight < MARGIN.y + 60) {
       drawPageFooter(page, assets)
       page = doc.addPage([PAGE.width, PAGE.height])
@@ -220,13 +207,8 @@ function drawRatePages(doc: PDFDocument, assets: Assets, inf: Influencer): void 
     cursor = drawPlatformRateBlock(page, assets, platform, card, cursor)
   }
 
-  // Final page: closing line + page-footer.
-  if (cursor - 80 < MARGIN.y + 80) {
-    drawPageFooter(page, assets)
-    page = doc.addPage([PAGE.width, PAGE.height])
-    cursor = drawSimpleHeader(page, assets, 'CONTACT', inf.name)
-  }
-  drawClosingLine(page, assets, cursor - 30)
+  // Stefan 2026-05-08: dropped the "Thank you / Reach out at contact@..."
+  // closing block. The last rate page just gets its standard page footer.
   drawPageFooter(page, assets)
 }
 
@@ -325,30 +307,9 @@ function drawPlatformRateBlock(
     y -= 16
   }
 
-  // Subtotal — separated by a thin rule.
-  page.drawLine({
-    start: { x: MARGIN.x + 8, y: y + 8 },
-    end: { x: PAGE.width - MARGIN.x - 4, y: y + 8 },
-    thickness: 0.5,
-    color: COLORS.rule,
-  })
-  drawText(page, 'Subtotal', {
-    x: MARGIN.x + 8,
-    y: y - 4,
-    font: fonts.sansBold,
-    size: 9,
-    color: COLORS.textFaint,
-    tracking: 1.5,
-  })
-  drawTextRight(page, formatEur(totalRatesForPlatform(card)), {
-    x: PAGE.width - MARGIN.x - 4,
-    y: y - 4,
-    font: fonts.sansBold,
-    size: 12,
-    color: COLORS.brand,
-  })
-
-  return y - 26 // gap before the next platform block
+  // Stefan 2026-05-08: dropped the subtotal block (rule + label + sum) —
+  // brands compute their own combinations, the per-rate breakdown is enough.
+  return y - 16 // gap before the next platform block
 }
 
 function drawSimpleHeader(page: PDFPage, assets: Assets, title: string, name: string): number {
@@ -389,43 +350,15 @@ function drawSimpleHeader(page: PDFPage, assets: Assets, title: string, name: st
 }
 
 function drawCoverFooter(page: PDFPage, assets: Assets): void {
+  // Stefan 2026-05-08: stripped the contact email + divider rule from the
+  // cover footer. Just the © stays so the cover doesn't end on a hard edge.
   const y = MARGIN.y + 6
-  page.drawLine({
-    start: { x: MARGIN.x, y: y + 22 },
-    end: { x: PAGE.width - MARGIN.x, y: y + 22 },
-    thickness: 0.5,
-    color: COLORS.rule,
-  })
-  drawText(page, 'contact@influenceroom.ro', {
-    x: MARGIN.x,
-    y,
-    font: assets.sans,
-    size: 10,
-    color: COLORS.textMuted,
-  })
   drawTextRight(page, '© 2026', {
     x: PAGE.width - MARGIN.x,
     y,
     font: assets.sans,
     size: 10,
     color: COLORS.textFaint,
-  })
-}
-
-function drawClosingLine(page: PDFPage, assets: Assets, y: number): void {
-  drawText(page, 'Thank you for your interest.', {
-    x: MARGIN.x,
-    y,
-    font: assets.serifBold,
-    size: 14,
-    color: COLORS.obsidian,
-  })
-  drawText(page, 'Reach out at contact@influenceroom.ro', {
-    x: MARGIN.x,
-    y: y - 18,
-    font: assets.sans,
-    size: 11,
-    color: COLORS.textMuted,
   })
 }
 
