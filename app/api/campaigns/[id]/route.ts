@@ -159,7 +159,7 @@ export async function PATCH(
 
       const [{ count: confirmedCount }, { data: recipients }] = await Promise.all([
         supabase
-          .from('campaign_influencers')
+          .from('campaign_participants')
           .select('id', { count: 'exact', head: true })
           .eq('campaign_id', data.id)
           .eq('status', 'confirmed'),

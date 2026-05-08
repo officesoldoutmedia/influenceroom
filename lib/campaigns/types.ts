@@ -57,7 +57,10 @@ export type TaskGroup = {
   tasks: Task[]
 }
 
-export const JUNCTION_STATUSES = [
+// Sprint 9 Faza 3a — campaign_participants replaces campaign_influencers.
+// One row per (campaign × influencer × platform) with optional ad-hoc handle.
+
+export const PARTICIPANT_STATUSES = [
   'pitched',
   'negotiating',
   'confirmed',
@@ -66,10 +69,10 @@ export const JUNCTION_STATUSES = [
   'paid',
   'cancelled',
 ] as const
-export type JunctionStatus = (typeof JUNCTION_STATUSES)[number]
+export type ParticipantStatus = (typeof PARTICIPANT_STATUSES)[number]
 
 // Forward-only workflow. cancelled is reachable from any non-terminal state.
-export const NEXT_JUNCTION_STATES: Record<JunctionStatus, JunctionStatus[]> = {
+export const NEXT_PARTICIPANT_STATES: Record<ParticipantStatus, ParticipantStatus[]> = {
   pitched: ['negotiating', 'cancelled'],
   negotiating: ['confirmed', 'cancelled'],
   confirmed: ['content_in_review', 'cancelled'],
@@ -79,35 +82,41 @@ export const NEXT_JUNCTION_STATES: Record<JunctionStatus, JunctionStatus[]> = {
   cancelled: [],
 }
 
-export type Performance = {
-  views?: number
-  likes?: number
-  saves?: number
-  reach?: number
-  comments?: number
-  shares?: number
+export const SOCIAL_PLATFORMS = ['instagram', 'tiktok', 'youtube', 'facebook'] as const
+export type SocialPlatform = (typeof SOCIAL_PLATFORMS)[number]
+
+export const PLATFORM_LABEL: Record<SocialPlatform, string> = {
+  instagram: 'Instagram',
+  tiktok: 'TikTok',
+  youtube: 'YouTube',
+  facebook: 'Facebook',
 }
 
-export type CampaignInfluencer = {
+export type CampaignParticipant = {
   id: string
   campaign_id: string
-  influencer_id: string
+  influencer_id: string | null
+  platform: SocialPlatform
+  account_handle: string
+  is_adhoc: boolean
   agreed_fee: number | null
-  deliverables: string | null
-  status: JunctionStatus
+  status: ParticipantStatus
   publish_date: string | null
   post_url: string | null
-  performance: Performance
   notes: string | null
-  created_at: string
+  added_by: string | null
+  added_at: string
+  updated_at: string
 }
 
-export type CampaignInfluencerJoined = CampaignInfluencer & {
-  influencer: {
-    id: string
-    name: string
-    primary_handle: string | null
-    tier: string | null
-    platforms: Record<string, { handle?: string; followers?: number; engagement_rate?: number }>
-  } | null
+export type ParticipantInfluencerRef = {
+  id: string
+  name: string
+  primary_handle: string | null
+  tier: string | null
+  platforms: Record<string, { handle?: string; followers?: number; engagement_rate?: number }>
+}
+
+export type CampaignParticipantJoined = CampaignParticipant & {
+  influencer: ParticipantInfluencerRef | null
 }

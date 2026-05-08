@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { requireCampaignWriter } from '@/lib/auth/campaign'
-import { JUNCTION_STATUSES, type JunctionStatus, type Performance } from '@/lib/campaigns/types'
+import {
+  PARTICIPANT_STATUSES,
+  SOCIAL_PLATFORMS,
+  type ParticipantStatus,
+} from '@/lib/campaigns/types'
 
 function admin() {
   return createClient(
@@ -11,23 +15,28 @@ function admin() {
   )
 }
 
-const REQUIRES_PUBLISH = new Set<JunctionStatus>(['published', 'paid'])
+const REQUIRES_PUBLISH = new Set<ParticipantStatus>(['published', 'paid'])
+
+const PARTICIPANT_SELECT = `
+  *,
+  influencer:influencers(id, name, primary_handle, tier, platforms)
+`
 
 type PatchBody = {
+  platform?: string
+  account_handle?: string
   agreed_fee?: number | null
-  deliverables?: string | null
   status?: string
-  notes?: string | null
   publish_date?: string | null
   post_url?: string | null
-  performance?: Partial<Performance>
+  notes?: string | null
 }
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string; junction_id: string }> },
+  { params }: { params: Promise<{ id: string; participant_id: string }> },
 ) {
-  const { id, junction_id } = await params
+  const { id, participant_id } = await params
   const denied = await requireCampaignWriter(id)
   if (denied) return denied
 
@@ -40,39 +49,39 @@ export async function PATCH(
 
   const supabase = admin()
 
-  // Fetch current state for status-transition validation (publish_date/post_url required for published+)
   const { data: current } = await supabase
-    .from('campaign_influencers')
+    .from('campaign_participants')
     .select('campaign_id, publish_date, post_url')
-    .eq('id', junction_id)
+    .eq('id', participant_id)
     .maybeSingle()
   if (!current || current.campaign_id !== id) {
     return NextResponse.json({ ok: false, error: 'not_found' }, { status: 404 })
   }
 
   const update: Record<string, unknown> = {}
+  if (body.platform !== undefined) {
+    if (!(SOCIAL_PLATFORMS as readonly string[]).includes(body.platform)) {
+      return NextResponse.json({ ok: false, error: 'invalid_platform' }, { status: 422 })
+    }
+    update.platform = body.platform
+  }
+  if (body.account_handle !== undefined) {
+    const trimmed = body.account_handle?.toString().trim()
+    if (!trimmed) return NextResponse.json({ ok: false, error: 'missing_handle' }, { status: 422 })
+    update.account_handle = trimmed
+  }
   if (body.agreed_fee !== undefined) update.agreed_fee = body.agreed_fee
-  if (body.deliverables !== undefined) update.deliverables = body.deliverables?.toString().trim() || null
   if (body.notes !== undefined) update.notes = body.notes?.toString().trim() || null
   if (body.publish_date !== undefined) update.publish_date = body.publish_date || null
   if (body.post_url !== undefined) update.post_url = body.post_url?.toString().trim() || null
   if (body.status !== undefined) {
-    if (!(JUNCTION_STATUSES as readonly string[]).includes(body.status)) {
-      return NextResponse.json({ ok: false, error: 'invalid_status' }, { status: 400 })
+    if (!(PARTICIPANT_STATUSES as readonly string[]).includes(body.status)) {
+      return NextResponse.json({ ok: false, error: 'invalid_status' }, { status: 422 })
     }
     update.status = body.status
   }
-  if (body.performance !== undefined) {
-    const cleaned: Performance = {}
-    for (const k of ['views', 'likes', 'saves', 'reach', 'comments', 'shares'] as const) {
-      const v = body.performance[k]
-      if (typeof v === 'number' && Number.isFinite(v) && v >= 0) cleaned[k] = v
-    }
-    update.performance = cleaned
-  }
 
-  // Required fields when transitioning to published / paid
-  const nextStatus = (update.status ?? null) as JunctionStatus | null
+  const nextStatus = (update.status ?? null) as ParticipantStatus | null
   if (nextStatus && REQUIRES_PUBLISH.has(nextStatus)) {
     const finalPublishDate = update.publish_date ?? current.publish_date
     const finalPostUrl = update.post_url ?? current.post_url
@@ -89,15 +98,10 @@ export async function PATCH(
   }
 
   const { data, error } = await supabase
-    .from('campaign_influencers')
+    .from('campaign_participants')
     .update(update)
-    .eq('id', junction_id)
-    .select(
-      `
-        *,
-        influencer:influencers(id, name, primary_handle, tier, platforms)
-      `,
-    )
+    .eq('id', participant_id)
+    .select(PARTICIPANT_SELECT)
     .maybeSingle()
 
   if (error) {
@@ -111,17 +115,16 @@ export async function PATCH(
 
 export async function DELETE(
   _req: NextRequest,
-  { params }: { params: Promise<{ id: string; junction_id: string }> },
+  { params }: { params: Promise<{ id: string; participant_id: string }> },
 ) {
-  const { id, junction_id } = await params
+  const { id, participant_id } = await params
   const denied = await requireCampaignWriter(id)
   if (denied) return denied
 
-  const supabase = admin()
-  const { data, error } = await supabase
-    .from('campaign_influencers')
+  const { data, error } = await admin()
+    .from('campaign_participants')
     .delete()
-    .eq('id', junction_id)
+    .eq('id', participant_id)
     .eq('campaign_id', id)
     .select('id')
     .maybeSingle()

@@ -6,7 +6,7 @@ import type { Tier } from './tiers'
 export { TIER_VALUES as TIERS, TIER_BADGE, TIER_LABELS_SHORT, TIER_LABELS_LONG } from './tiers'
 export type { Tier }
 
-export const PLATFORMS = ['instagram', 'tiktok', 'youtube', 'twitch'] as const
+export const PLATFORMS = ['instagram', 'tiktok', 'youtube', 'facebook'] as const
 export type Platform = (typeof PLATFORMS)[number]
 
 export const STATUSES = ['active', 'inactive', 'blacklist'] as const
