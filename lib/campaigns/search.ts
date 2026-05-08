@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { CAMPAIGN_STATUSES, type CampaignWithJoins, type CampaignStatus } from './types'
+import { scopeCampaignsRead, type UserContext } from '@/lib/auth/scope'
 
 export const PAGE_SIZE = 20
 
@@ -9,6 +10,9 @@ export type CampaignSearchParams = {
   brand?: string | null
   owner?: string | null
   page?: number
+  // Required at every call site; applied as a final WHERE so account managers
+  // only see their own campaigns. Pass the result of getCurrentUser().
+  user: UserContext
 }
 
 export type CampaignSearchResult = {
@@ -50,6 +54,7 @@ export async function listCampaigns(p: CampaignSearchParams): Promise<CampaignSe
   if (statuses.length) query = query.in('status', statuses)
   if (p.brand) query = query.eq('brand_id', p.brand)
   if (p.owner) query = query.eq('owner_id', p.owner)
+  query = scopeCampaignsRead(query, p.user)
 
   const from = (page - 1) * PAGE_SIZE
   const to = from + PAGE_SIZE - 1

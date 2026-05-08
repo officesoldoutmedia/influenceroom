@@ -53,7 +53,7 @@ export default async function CampaignsPage({
     page: numParam(sp.page) ?? 1,
   }
 
-  const result = await listCampaigns(filters)
+  const result = await listCampaigns({ ...filters, user: { id: userId, role } })
 
   return (
     <>

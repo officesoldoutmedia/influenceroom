@@ -17,6 +17,7 @@ import {
 } from '@/lib/influencers/types'
 import { formatFollowers, formatEur } from '@/lib/influencers/format'
 import { DetailUI } from './detail-ui'
+import { canReadInfluencer, isOwnerOrManager } from '@/lib/auth/scope'
 
 export const dynamic = 'force-dynamic'
 
@@ -49,12 +50,22 @@ export default async function InfluencerDetailPage({
   ])
 
   if (!i) notFound()
+  // Read-side scoping: account/intern see only own assignments + unassigned.
+  // Surface as 404 (not 403) so probing users can't enumerate other managers'
+  // rosters.
+  const user = { id: userId, role }
+  if (!canReadInfluencer(user, { account_manager_id: i.account_manager_id })) notFound()
 
   const managerName = i.account_manager_id
     ? ((managers ?? []) as ManagerSummary[]).find((m) => m.id === i.account_manager_id)?.name ?? null
     : null
 
-  const canWrite = role === 'owner' || role === 'manager' || role === 'account'
+  // Write-gating mirrors requireInfluencerWriter (Path A scope.ts): owner/manager
+  // bypass; account/intern can write rows they own or that are unassigned.
+  const canWrite =
+    isOwnerOrManager(user) ||
+    (role === 'account' &&
+      (i.account_manager_id === null || i.account_manager_id === userId))
 
   return (
     <>

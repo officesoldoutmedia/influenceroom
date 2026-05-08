@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { createClient } from '@supabase/supabase-js'
 import { Nav, type NavRole } from './_components/nav'
 import { Card, PageHeader, Badge, Button } from '@/lib/ui'
+import { scopeCampaignsRead, scopeInfluencersRead } from '@/lib/auth/scope'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,13 +20,22 @@ export default async function Home() {
     { auth: { persistSession: false, autoRefreshToken: false } },
   )
 
+  const me = { id: userId, role }
+  const campaignsBase = supabase
+    .from('campaigns')
+    .select('id, name, status, created_at')
+    .order('created_at', { ascending: false })
+    .limit(5)
+  const influencersBase = supabase
+    .from('influencers')
+    .select('id, name, tier, status')
+    .eq('status', 'active')
+    .order('created_at', { ascending: false })
+    .limit(5)
+
   const [{ data: user }, campaigns, myTasks, recentInfluencers] = await Promise.all([
     supabase.from('team_members').select('id, name, role').eq('id', userId).maybeSingle(),
-    supabase
-      .from('campaigns')
-      .select('id, name, status, created_at')
-      .order('created_at', { ascending: false })
-      .limit(5),
+    scopeCampaignsRead(campaignsBase, me),
     supabase
       .from('tasks')
       .select('id, title, status, due_date, campaign_id')
@@ -33,12 +43,7 @@ export default async function Home() {
       .neq('status', 'done')
       .order('due_date', { ascending: true, nullsFirst: false })
       .limit(5),
-    supabase
-      .from('influencers')
-      .select('id, name, tier, status')
-      .eq('status', 'active')
-      .order('created_at', { ascending: false })
-      .limit(5),
+    scopeInfluencersRead(influencersBase, me),
   ])
 
   if (!user) redirect('/login')
@@ -116,7 +121,7 @@ export default async function Home() {
               </div>
               {campaigns.data && campaigns.data.length > 0 ? (
                 <ul className="divide-y divide-stone-100">
-                  {campaigns.data.map((c) => (
+                  {(campaigns.data as Array<{ id: string; name: string; status: string }>).map((c) => (
                     <li key={c.id} className="py-2.5">
                       <Link
                         href={`/campaigns/${c.id}`}
@@ -161,7 +166,7 @@ export default async function Home() {
               </div>
               {recentInfluencers.data && recentInfluencers.data.length > 0 ? (
                 <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-                  {recentInfluencers.data.map((i) => (
+                  {(recentInfluencers.data as Array<{ id: string; name: string; tier: string | null; status: string }>).map((i) => (
                     <li key={i.id}>
                       <Link
                         href={`/influencers/${i.id}`}

@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { TIERS, PLATFORMS, STATUSES, type Tier, type Platform, type InfluencerStatus, type Influencer } from './types'
+import { scopeInfluencersRead, type UserContext } from '@/lib/auth/scope'
 
 export const PAGE_SIZE = 20
 
@@ -14,6 +15,10 @@ export type SearchParams = {
   /** uuid | "unassigned" | null */
   manager?: string | null
   page?: number
+  // Required at every call site; applied as a final WHERE so account managers
+  // only see influencers assigned to them or unassigned. Pass the result of
+  // getCurrentUser().
+  user: UserContext
 }
 
 export type SearchResult = {
@@ -64,6 +69,7 @@ export async function searchInfluencers(p: SearchParams): Promise<SearchResult> 
   if (rangePlatform && p.fmax != null && Number.isFinite(p.fmax)) {
     query = query.lte(`social_handles->${rangePlatform}->followers::int`, p.fmax)
   }
+  query = scopeInfluencersRead(query, p.user)
 
   const from = (page - 1) * PAGE_SIZE
   const to = from + PAGE_SIZE - 1

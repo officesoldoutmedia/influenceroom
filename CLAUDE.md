@@ -66,7 +66,11 @@ fires `/api/cron/deadline-scheduler`, which calls
 For each of the 4 reminder windows the scheduler scans the relevant table:
 - **`7d`** — post_date / due_date is exactly today + 7 days
 - **`3d`** — exactly today + 3 days
-- **`1d`** — exactly today + 1 day (= "tomorrow")
+- **`1d`** — today **OR** today + 1 day. Subject reads "AZI" when the
+  deadline is today (driven by an `isToday` flag in the templates) and "mâine"
+  otherwise. The `reminder_kind` written to `deadline_reminder_log` stays
+  `'1d'` for both days so a row that got the "tomorrow" warning yesterday
+  is not pinged again as the "today" warning — idempotency carries across.
 - **`overdue`** — strictly before today (and not yet completed/published/cancelled)
 
 Recipients (Opțiunea A):
@@ -118,6 +122,25 @@ notification row directly.
 ## Key conventions
 - PIN auth: 4 digits, bcrypt (Postgres pgcrypto, cost 10), jose HS256 JWT
   in HttpOnly cookie `ir_session`, 30-day expiry, 5-attempt lockout
+- **Authorization is app-layer (Path A), not RLS.** Every server-side Supabase
+  client uses `service_role` and bypasses RLS. We instead filter at the
+  API/page layer via `lib/auth/scope.ts`:
+    - `getCurrentUser()` — reads `x-user-id` / `x-user-role` middleware headers
+    - `isOwnerOrManager(user)` — bypass check
+    - `scopeCampaignsRead(query, user)` — appends `owner_id = user.id` for
+      account/intern, no-op for owner/manager
+    - `scopeInfluencersRead(query, user)` — appends `(account_manager_id =
+      user.id OR account_manager_id IS NULL)`
+    - `canReadCampaign` / `canReadInfluencer` — single-row predicates (use
+      `notFound()` on miss, not 403, so account users can't enumerate ids)
+    - `requireInfluencerWriter(id)` — write-side mirror; campaigns already
+      have `requireCampaignWriter` in `lib/auth/campaign.ts`
+  Why not real RLS: spec called for `auth.uid()`-based policies, but the app
+  uses custom HS256 JWT (not Supabase Auth), so `auth.uid()` is null and
+  service_role bypasses every policy. Real RLS would require minting a
+  Supabase JWT per request and switching server clients to anon key —
+  significant rewrite. Existing "authenticated read all" RLS policies stay
+  as defense-in-depth + intent documentation.
 - Conventional commits (feat:, fix:, chore:, refactor:, docs:)
 - `pnpm run typecheck` + `pnpm run lint` must pass before any commit
 - Cron handlers gate to Europe/Bucharest local time in handler body

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { requireWriter } from '@/lib/auth/require'
+import { getCurrentUser } from '@/lib/auth/scope'
 import { searchInfluencers } from '@/lib/influencers/search'
 import { validateAndNormalize, type InfluencerInput } from '@/lib/influencers/validate'
 
@@ -13,6 +14,9 @@ function admin() {
 }
 
 export async function GET(req: NextRequest) {
+  const user = await getCurrentUser()
+  if (!user) return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401 })
+
   const sp = req.nextUrl.searchParams
   try {
     const result = await searchInfluencers({
@@ -24,6 +28,7 @@ export async function GET(req: NextRequest) {
       tags: sp.getAll('tag'),
       status: sp.get('status'),
       page: Number(sp.get('page') ?? '1'),
+      user,
     })
     return NextResponse.json({ ok: true, ...result })
   } catch (err) {

@@ -62,7 +62,7 @@ export default async function InfluencersPage({
     page: numParam(sp.page) ?? 1,
   }
 
-  const result = await searchInfluencers(filters)
+  const result = await searchInfluencers({ ...filters, user: { id: userId, role } })
 
   return (
     <>

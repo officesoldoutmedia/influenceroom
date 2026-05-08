@@ -18,6 +18,7 @@ import { DeliverablesUI } from './deliverables-ui'
 import { MilestonesUI } from './milestones-ui'
 import { CampaignTabsShell } from './tabs-shell'
 import { formatEur } from '@/lib/influencers/format'
+import { canReadCampaign } from '@/lib/auth/scope'
 
 export const dynamic = 'force-dynamic'
 
@@ -65,6 +66,10 @@ export default async function CampaignDetailPage({
     .maybeSingle<CampaignWithJoins>()
 
   if (!campaign) notFound()
+  // Read-side scoping mirrors the list view: owner/manager bypass, account
+  // sees only own campaigns. Surface as 404 (not 403) so probing users
+  // can't tell which campaign IDs exist outside their scope.
+  if (!canReadCampaign({ id: userId, role }, { owner_id: campaign.owner_id })) notFound()
 
   const [
     { data: groups },

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { headers } from 'next/headers'
 import { createClient } from '@supabase/supabase-js'
 import { requireWriter } from '@/lib/auth/require'
+import { getCurrentUser } from '@/lib/auth/scope'
 import { listCampaigns } from '@/lib/campaigns/search'
 
 function admin() {
@@ -13,6 +14,9 @@ function admin() {
 }
 
 export async function GET(req: NextRequest) {
+  const user = await getCurrentUser()
+  if (!user) return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401 })
+
   const sp = req.nextUrl.searchParams
   try {
     const result = await listCampaigns({
@@ -21,6 +25,7 @@ export async function GET(req: NextRequest) {
       brand: sp.get('brand'),
       owner: sp.get('owner'),
       page: Number(sp.get('page') ?? '1'),
+      user,
     })
     return NextResponse.json({ ok: true, ...result })
   } catch (err) {

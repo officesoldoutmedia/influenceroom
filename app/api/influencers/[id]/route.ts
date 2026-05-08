@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { requireWriter } from '@/lib/auth/require'
+import { requireInfluencerWriter } from '@/lib/auth/scope'
 import { validateAndNormalize, type InfluencerInput } from '@/lib/influencers/validate'
 
 function admin() {
@@ -19,6 +20,9 @@ export async function PATCH(
   if (denied) return denied
 
   const { id } = await params
+
+  const scoped = await requireInfluencerWriter(id)
+  if (scoped) return scoped
 
   let body: InfluencerInput
   try {
@@ -59,6 +63,9 @@ export async function DELETE(
   if (denied) return denied
 
   const { id } = await params
+
+  const scoped = await requireInfluencerWriter(id)
+  if (scoped) return scoped
 
   const supabase = admin()
   const { data, error } = await supabase

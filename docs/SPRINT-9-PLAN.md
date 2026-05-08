@@ -23,7 +23,7 @@
 | 3b | Deliverables + Milestones schema + UI tabs | ✅ |
 | 3c | Social handles + tier auto-calc + filter labels | ✅ |
 | 4 | Multi-account junction | ~45 min |
-| 5 | RLS refactor — account scoping pe influencers + campaigns + tasks; owner bypass | ~1.5h |
+| 5 | Path A app-layer scoping — `lib/auth/scope.ts` (owner/manager bypass; account: own campaigns + assigned/unassigned influencers). RLS-via-Supabase-Auth abandoned because the app uses custom HS256 JWT and every server client uses service_role; real RLS would have silently no-op'd. Same-day deadline fix (1d window includes today) shipped as standalone commit. | ✅ |
 | 6 | Sistem notificări deadline (account 7/3/1/post · influencer 3/1/post) | ✅ |
 | 7 | Frontend polish — design system applied to all pages + mobile/PWA polish | ✅ partial — campaign board mobile + per-page modals → <Dialog> deferred |
 
