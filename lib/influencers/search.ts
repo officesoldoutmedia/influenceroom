@@ -4,6 +4,9 @@ import { scopeInfluencersRead, type UserContext } from '@/lib/auth/scope'
 
 export const PAGE_SIZE = 20
 
+const SCORE_CATEGORIES = ['low', 'medium', 'high', 'top_performer'] as const
+type ScoreCategoryFilter = (typeof SCORE_CATEGORIES)[number]
+
 export type SearchParams = {
   q?: string | null
   tiers?: string[]
@@ -14,6 +17,11 @@ export type SearchParams = {
   status?: string | null
   /** uuid | "unassigned" | null */
   manager?: string | null
+  // Filter by influencer_scores.category. When set, we pre-fetch matching
+  // influencer ids and apply `.in('id', ids)` so PostgREST's pagination + count
+  // still reflect the filtered set. Influencers without a score row are
+  // excluded when this filter is active.
+  scoreCategory?: string | null
   page?: number
   // Required at every call site; applied as a final WHERE so account managers
   // only see influencers assigned to them or unassigned. Pass the result of
@@ -51,6 +59,17 @@ export async function searchInfluencers(p: SearchParams): Promise<SearchResult> 
   if (tiers.length) query = query.in('tier', tiers)
   if (tags.length) query = query.contains('niche_tags', tags)
   if (status && (STATUSES as readonly string[]).includes(status)) query = query.eq('status', status)
+
+  if (p.scoreCategory && (SCORE_CATEGORIES as readonly string[]).includes(p.scoreCategory)) {
+    const { data: scoredIds } = await supabase
+      .from('influencer_scores')
+      .select('influencer_id')
+      .eq('category', p.scoreCategory as ScoreCategoryFilter)
+    const ids = (scoredIds ?? []).map((r) => (r as { influencer_id: string }).influencer_id)
+    // Always set a constraint — empty array forces zero results, which is
+    // the right outcome when no influencer has a score in the picked band.
+    query = query.in('id', ids.length > 0 ? ids : ['00000000-0000-0000-0000-000000000000'])
+  }
 
   if (p.manager === 'unassigned') {
     query = query.is('account_manager_id', null)

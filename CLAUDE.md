@@ -97,6 +97,76 @@ and `deadline-reminder-milestone.ts` — Romanian, HTML-escape user input,
 because the scheduler is a backend pipeline that builds + inserts the
 notification row directly.
 
+## Scoring system (Sprint 10)
+Hybrid auto + manual scoring on a 0..100 scale across 6 criteria, banded
+into 4 categories (`low <=40`, `medium <=65`, `high <=85`, `top_performer`).
+Migrations 030–034.
+
+**Tables**
+- `scoring_settings` (singleton, `id=1`) — six `weight_*` integers (0..100)
+  + `updated_by/at`. Defaults `25/20/20/15/10/10`.
+- `influencer_scores` (one row per influencer, `UNIQUE(influencer_id)`) —
+  4 manual fields (`score_engagement_rate`, `score_cpv`,
+  `score_audience_ro`, `score_deliverable_quality`), 2 auto fields
+  (`score_punctuality`, `score_collaboration_history`), derived
+  `total_score` + `category` + `explanation`, audit (`updated_by/at`,
+  `last_calculated_at`).
+- `influencer_score_history` — append-only audit. One row per
+  `total_score` change with `change_reason ∈
+  ('manual_update','auto_recalc','weights_changed')`.
+
+**Functions** (migration 034)
+- `calc_punctuality_score(influencer_id)` → percent of published
+  deliverables with `published_at::date <= post_date`. NULL when the
+  influencer has no published deliverables yet (so the weight is dropped
+  from the average). `published_at` is stamped automatically by the
+  trigger added in migration 030 on the `status -> 'published'` transition.
+- `calc_collaboration_history_score(influencer_id)` →
+  `0/20/40/60/80/100` from `COUNT(DISTINCT campaign_id)` where
+  `campaigns.status = 'completed'` (capped at 5+). Always non-NULL — a
+  zero-history influencer gets 0, weighted in fully.
+- `recalc_influencer_score(influencer_id, changed_by, reason)` —
+  re-derives the auto criteria, computes the weighted average over
+  criteria with non-NULL scores **re-normalising by the sum of active
+  weights** (so unrated manual criteria don't drag the total down),
+  bands into category, UPSERTs the row, and inserts an
+  `influencer_score_history` entry only when `total_score` actually
+  changes (`IS DISTINCT FROM` guard preserves idempotency).
+
+**Why re-normalisation, not "missing = 0":** an unrated criterion is
+"unknown", not "bad". Counting it as 0 would make any new influencer
+look low forever, even with strong auto signals. Re-normalising means
+the score reflects the criteria we *do* know — and naturally rises as
+manual ratings get filled in.
+
+**API surface**
+- `GET  /api/influencers/[id]/score` — score row + last 10 history.
+- `PATCH /api/influencers/[id]/score` — UPSERT manual fields, then
+  `recalc_influencer_score(reason='manual_update')`. Path A scoping.
+- `POST /api/influencers/[id]/score/recalculate` — force a fresh
+  recompute (used after publishing/completing). Path A scoping.
+- `GET/PATCH /api/admin/scoring-settings` — owner-only. PATCH fans out
+  `recalc_influencer_score` over every influencer with
+  `reason='weights_changed'` and returns the count.
+
+**UI**
+- `/influencers/[id]` — score section with circle (total), category
+  badge, 6 criterion cards (auto vs manual marker), explanation,
+  history (last 10), recalculate + edit-manual buttons.
+- `/influencers` — score column + `score_category` URL filter
+  (`?score_category=high` etc.). Sortable column header is *deferred*
+  for now — the category band already clusters meaningfully.
+- `/admin/scoring-settings` — owner-only weight sliders, sum indicator,
+  confirm-modal before saving (recalculates every influencer
+  synchronously; the team is small enough for that to be a feature, not
+  a flaw).
+
+**Sprint 11 (Reporting) hook:** when post-campaign reporting lands, the
+4 currently-manual criteria can be re-fed automatically (engagement_rate,
+cpv, audience_ro from analytics dumps; deliverable_quality stays manual).
+The `recalc_influencer_score` function won't need to change — only the
+input source for those 4 columns.
+
 ## Pending pre-public-launch (Stefan-controlled, not blocking beta)
 - **Resend account + verified sender domain** — DONE. `notify@influenceroom.ro`
   is verified in Resend (region eu-west-1). Worker has `RESEND_API_KEY`,

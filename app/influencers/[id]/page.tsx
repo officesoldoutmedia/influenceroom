@@ -17,7 +17,9 @@ import {
 } from '@/lib/influencers/types'
 import { formatFollowers, formatEur } from '@/lib/influencers/format'
 import { DetailUI } from './detail-ui'
+import { ScoreSection } from './score-section'
 import { canReadInfluencer, isOwnerOrManager } from '@/lib/auth/scope'
+import type { InfluencerScore, ScoreHistoryEntry } from '@/lib/scoring/types'
 
 export const dynamic = 'force-dynamic'
 
@@ -38,7 +40,13 @@ export default async function InfluencerDetailPage({
     { auth: { persistSession: false, autoRefreshToken: false } },
   )
 
-  const [{ data: me }, { data: i }, { data: managers }] = await Promise.all([
+  const [
+    { data: me },
+    { data: i },
+    { data: managers },
+    { data: score },
+    { data: history },
+  ] = await Promise.all([
     supabase.from('team_members').select('name').eq('id', userId).maybeSingle(),
     supabase.from('influencers').select('*').eq('id', id).maybeSingle<Influencer>(),
     supabase
@@ -47,6 +55,13 @@ export default async function InfluencerDetailPage({
       .eq('active', true)
       .in('role', ['owner', 'manager', 'account'])
       .order('name'),
+    supabase.from('influencer_scores').select('*').eq('influencer_id', id).maybeSingle<InfluencerScore>(),
+    supabase
+      .from('influencer_score_history')
+      .select('*')
+      .eq('influencer_id', id)
+      .order('changed_at', { ascending: false })
+      .limit(10),
   ])
 
   if (!i) notFound()
@@ -185,6 +200,13 @@ export default async function InfluencerDetailPage({
               </p>
             )}
           </Section>
+
+          <ScoreSection
+            influencerId={id}
+            initialScore={(score ?? null) as InfluencerScore | null}
+            initialHistory={(history ?? []) as ScoreHistoryEntry[]}
+            canEdit={canWrite}
+          />
 
           <Section title="Rates (EUR)">
             <div className="grid grid-cols-4 gap-4 text-sm">

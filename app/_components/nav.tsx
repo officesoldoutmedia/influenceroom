@@ -22,6 +22,7 @@ export function Nav({ name, role }: { name: string; role: NavRole }) {
     { href: '/brands', label: 'Branduri' },
     { href: '/profile', label: 'Profil' },
     { href: '/admin/notifications', label: 'Notificări', show: role === 'owner' },
+    { href: '/admin/scoring-settings', label: 'Setări scoring', show: role === 'owner' },
     { href: '/admin/broadcast', label: 'Broadcast', show: role === 'owner' },
     { href: '/admin/team', label: 'Echipă', show: role === 'owner' },
   ]

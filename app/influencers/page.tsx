@@ -59,10 +59,22 @@ export default async function InfluencersPage({
     tags: arrayParam(sp.tag),
     status: strParam(sp.status),
     manager: strParam(sp.manager),
+    scoreCategory: strParam(sp.score_category),
     page: numParam(sp.page) ?? 1,
   }
 
   const result = await searchInfluencers({ ...filters, user: { id: userId, role } })
+
+  // Fetch score rows for the visible page so the list can show the score
+  // column without N+1 lookups. Keyed by influencer_id in the UI.
+  const visibleIds = result.items.map((it) => it.id)
+  const { data: scoreRows } =
+    visibleIds.length > 0
+      ? await supabase
+          .from('influencer_scores')
+          .select('influencer_id, total_score, category')
+          .in('influencer_id', visibleIds)
+      : { data: [] }
 
   return (
     <>
@@ -79,6 +91,7 @@ export default async function InfluencersPage({
             role={role}
             currentUserId={userId}
             managers={(managers ?? []) as ManagerSummary[]}
+            scoreRows={(scoreRows ?? []) as Array<{ influencer_id: string; total_score: number; category: string }>}
           />
         </div>
       </main>

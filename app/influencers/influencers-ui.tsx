@@ -18,6 +18,7 @@ import {
 } from '@/lib/influencers/types'
 import { formatFollowers } from '@/lib/influencers/format'
 import { Avatar, EmptyState, Button } from '@/lib/ui'
+import { CATEGORY_COLORS, CATEGORY_LABELS, type ScoreCategory } from '@/lib/scoring/types'
 import {
   emptyForm,
   formToPayload,
@@ -36,8 +37,11 @@ type Filters = {
   tags: string[]
   status: string | null
   manager: string | null
+  scoreCategory: string | null
   page: number
 }
+
+type ScoreRow = { influencer_id: string; total_score: number; category: string }
 
 type ApiResp = { ok?: boolean; error?: string; influencer?: Influencer }
 
@@ -50,6 +54,7 @@ export function InfluencersUI({
   role,
   currentUserId,
   managers,
+  scoreRows,
 }: {
   initialItems: Influencer[]
   total: number
@@ -59,7 +64,12 @@ export function InfluencersUI({
   role: Role
   currentUserId: string
   managers: ManagerSummary[]
+  scoreRows: ScoreRow[]
 }) {
+  const scoresById = useMemo(
+    () => new Map(scoreRows.map((s) => [s.influencer_id, s])),
+    [scoreRows],
+  )
   const router = useRouter()
   const pathname = usePathname()
   const canWrite = role === 'owner' || role === 'manager' || role === 'account'
@@ -85,6 +95,7 @@ export function InfluencersUI({
     for (const t of merged.tags) params.append('tag', t)
     if (merged.status) params.set('status', merged.status)
     if (merged.manager) params.set('manager', merged.manager)
+    if (merged.scoreCategory) params.set('score_category', merged.scoreCategory)
     if (merged.page > 1) params.set('page', String(merged.page))
     const qs = params.toString()
     router.push(qs ? `${pathname}?${qs}` : pathname)
@@ -164,7 +175,10 @@ export function InfluencersUI({
                           <span className="italic text-stone-400">Neasignat</span>
                         )}
                       </span>
-                      <span className="shrink-0 tabular-nums">{primaryFollowers(i)}</span>
+                      <span className="shrink-0 flex items-center gap-2">
+                        <ScoreCell row={scoresById.get(i.id)} />
+                        <span className="tabular-nums">{primaryFollowers(i)}</span>
+                      </span>
                     </div>
                   </div>
                 </Link>
@@ -183,6 +197,7 @@ export function InfluencersUI({
                   <th className="px-4 py-3">Manager</th>
                   <th className="px-4 py-3">Niche</th>
                   <th className="px-4 py-3 text-right">Followers</th>
+                  <th className="px-4 py-3">Scor</th>
                   <th className="px-4 py-3">Status</th>
                 </tr>
               </thead>
@@ -230,6 +245,9 @@ export function InfluencersUI({
                     </td>
                     <td className="px-4 py-3 text-stone-600 text-right tabular-nums">
                       {primaryFollowers(i)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <ScoreCell row={scoresById.get(i.id)} />
                     </td>
                     <td className="px-4 py-3">
                       <span className={`text-[10px] uppercase tracking-[0.06em] font-medium ${i.status === 'active' ? 'text-emerald-700' : i.status === 'blacklist' ? 'text-rose-700' : 'text-stone-400'}`}>
@@ -291,7 +309,22 @@ export function InfluencersUI({
 }
 
 function hasActiveFilter(f: Filters): boolean {
-  return !!(f.q || f.tiers.length || f.platform || f.fmin != null || f.fmax != null || f.tags.length || f.status || f.manager)
+  return !!(f.q || f.tiers.length || f.platform || f.fmin != null || f.fmax != null || f.tags.length || f.status || f.manager || f.scoreCategory)
+}
+
+function ScoreCell({ row }: { row: { total_score: number; category: string } | undefined }) {
+  if (!row) {
+    return <span className="text-[11px] text-stone-400 italic">nescorat</span>
+  }
+  const cat = row.category as ScoreCategory
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span className="tabular-nums text-stone-900 font-medium text-sm">{row.total_score}</span>
+      <span className={`text-[10px] uppercase tracking-wide font-medium px-1.5 py-0.5 rounded ${CATEGORY_COLORS[cat] ?? 'bg-stone-100 text-stone-600'}`}>
+        {CATEGORY_LABELS[cat] ?? cat}
+      </span>
+    </span>
+  )
 }
 
 function primaryFollowers(i: Influencer): string {
@@ -322,6 +355,7 @@ function FilterBar({
   const [fmax, setFmax] = useState<string>(filters.fmax != null ? String(filters.fmax) : '')
   const [tags, setTags] = useState<string[]>(filters.tags)
   const [manager, setManager] = useState<string>(filters.manager ?? '')
+  const [scoreCategory, setScoreCategory] = useState<string>(filters.scoreCategory ?? '')
 
   // Debounce search input
   useEffect(() => {
@@ -360,7 +394,8 @@ function FilterBar({
     setFmax('')
     setTags([])
     setManager('')
-    onApply({ q: null, tiers: [], platform: null, fmin: null, fmax: null, tags: [], status: null, manager: null, page: 1 })
+    setScoreCategory('')
+    onApply({ q: null, tiers: [], platform: null, fmin: null, fmax: null, tags: [], status: null, manager: null, scoreCategory: null, page: 1 })
   }
 
   const hasFilter = useMemo(() => hasActiveFilter(filters), [filters])
@@ -433,6 +468,20 @@ function FilterBar({
           placeholder="Followers max"
           className={inputCls}
         />
+        <select
+          value={scoreCategory}
+          onChange={(e) => {
+            setScoreCategory(e.target.value)
+            onApply({ scoreCategory: e.target.value || null })
+          }}
+          className={inputCls}
+        >
+          <option value="">Toate scorurile</option>
+          <option value="low">Low</option>
+          <option value="medium">Medium</option>
+          <option value="high">High</option>
+          <option value="top_performer">Top Performer</option>
+        </select>
       </div>
 
       {/* Tier chips */}
