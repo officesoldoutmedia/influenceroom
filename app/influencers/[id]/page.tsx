@@ -64,6 +64,7 @@ export default async function InfluencerDetailPage({
     { data: score },
     { data: history },
     { data: rateHistory },
+    { data: participantRows },
   ] = await Promise.all([
     supabase.from('team_members').select('name').eq('id', userId).maybeSingle(),
     supabase.from('influencers').select('*').eq('id', id).maybeSingle<Influencer>(),
@@ -86,6 +87,19 @@ export default async function InfluencerDetailPage({
       .eq('influencer_id', id)
       .order('changed_at', { ascending: false })
       .limit(10),
+    // "Campanii anterioare" — one row per (campaign × platform); we aggregate
+    // platforms in TS below and scope visibility client-of-server-side via
+    // canReadCampaign so account users only see campaigns they own.
+    supabase
+      .from('campaign_participants')
+      .select(
+        `platform,
+         campaign:campaigns!inner(
+           id, name, status, start_date, end_date, owner_id,
+           brand:brands(name)
+         )`,
+      )
+      .eq('influencer_id', id),
   ])
 
   if (!i) notFound()
@@ -105,6 +119,15 @@ export default async function InfluencerDetailPage({
     isOwnerOrManager(user) ||
     (role === 'account' &&
       (i.account_manager_id === null || i.account_manager_id === userId))
+
+  // Aggregate campaign participants into per-campaign rows. Path A scoping:
+  // account users see only campaigns they own; owner/manager see everything.
+  // Many-to-one nested-selects can come back as object or single-item array
+  // depending on Supabase's hint — unwrap both shapes.
+  const previousCampaigns = aggregatePreviousCampaigns(
+    (participantRows ?? []) as ParticipantCampaignRow[],
+    user,
+  ).slice(0, 10)
 
   return (
     <>
@@ -278,9 +301,7 @@ export default async function InfluencerDetailPage({
             </Section>
           )}
 
-          <Section title="Campaigns">
-            <p className="text-sm text-stone-400">No campaigns yet (Sprint 3).</p>
-          </Section>
+          <PreviousCampaignsSection items={previousCampaigns} />
         </div>
       </main>
     </>
@@ -454,5 +475,145 @@ function RateCardHistorySection({ entries }: { entries: RateCardHistoryEntry[] }
         })}
       </ul>
     </details>
+  )
+}
+
+// ── Previous campaigns ──────────────────────────────────────────────────────
+
+type ParticipantCampaignRow = {
+  platform: string
+  campaign:
+    | {
+        id: string
+        name: string
+        status: string
+        start_date: string | null
+        end_date: string | null
+        owner_id: string | null
+        brand: { name: string } | { name: string }[] | null
+      }
+    | Array<{
+        id: string
+        name: string
+        status: string
+        start_date: string | null
+        end_date: string | null
+        owner_id: string | null
+        brand: { name: string } | { name: string }[] | null
+      }>
+    | null
+}
+
+type PreviousCampaign = {
+  campaign_id: string
+  name: string
+  brand_name: string | null
+  status: string
+  start_date: string | null
+  end_date: string | null
+  platforms: string[]
+}
+
+function aggregatePreviousCampaigns(
+  rows: ParticipantCampaignRow[],
+  user: { id: string; role: string },
+): PreviousCampaign[] {
+  const isPrivileged = user.role === 'owner' || user.role === 'manager'
+  const map = new Map<string, PreviousCampaign>()
+  for (const row of rows) {
+    const campaign = Array.isArray(row.campaign) ? row.campaign[0] : row.campaign
+    if (!campaign) continue
+    if (!isPrivileged && campaign.owner_id !== user.id) continue
+    const existing = map.get(campaign.id)
+    if (existing) {
+      if (!existing.platforms.includes(row.platform)) {
+        existing.platforms.push(row.platform)
+      }
+      continue
+    }
+    const brand = Array.isArray(campaign.brand) ? campaign.brand[0] : campaign.brand
+    map.set(campaign.id, {
+      campaign_id: campaign.id,
+      name: campaign.name,
+      brand_name: brand?.name ?? null,
+      status: campaign.status,
+      start_date: campaign.start_date,
+      end_date: campaign.end_date,
+      platforms: [row.platform],
+    })
+  }
+  return Array.from(map.values()).sort((a, b) => {
+    if (a.start_date === b.start_date) return 0
+    if (a.start_date == null) return 1
+    if (b.start_date == null) return -1
+    return a.start_date < b.start_date ? 1 : -1
+  })
+}
+
+const PLATFORM_ABBR: Record<string, string> = {
+  instagram: 'IG',
+  tiktok: 'TT',
+  youtube: 'YT',
+  facebook: 'FB',
+}
+
+const STATUS_LABEL_RO: Record<string, string> = {
+  draft: 'Schiță',
+  active: 'Activă',
+  in_review: 'În review',
+  completed: 'Finalizată',
+  cancelled: 'Anulată',
+}
+
+function formatRange(start: string | null, end: string | null): string {
+  if (!start && !end) return '—'
+  const fmt = (s: string) =>
+    new Date(s).toLocaleDateString('ro-RO', { month: 'short', year: 'numeric' })
+  if (start && end) return `${fmt(start)} — ${fmt(end)}`
+  return fmt((start ?? end) as string)
+}
+
+function PreviousCampaignsSection({ items }: { items: PreviousCampaign[] }) {
+  return (
+    <Section title={`Campanii anterioare${items.length ? ` (${items.length})` : ''}`}>
+      {items.length === 0 ? (
+        <p className="text-sm text-stone-400">Niciun istoric campanii.</p>
+      ) : (
+        <ul className="divide-y divide-stone-100">
+          {items.map((c) => {
+            const platforms = c.platforms
+              .map((p) => PLATFORM_ABBR[p] ?? p.toUpperCase())
+              .join(', ')
+            const statusLabel = STATUS_LABEL_RO[c.status] ?? c.status
+            return (
+              <li key={c.campaign_id}>
+                <Link
+                  href={`/campaigns/${c.campaign_id}`}
+                  className="block py-3 -mx-2 px-2 rounded-lg hover:bg-stone-50 transition-colors"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-stone-900 truncate">
+                        {c.name}
+                        {c.brand_name && (
+                          <span className="text-stone-400"> · {c.brand_name}</span>
+                        )}
+                        {platforms && (
+                          <span className="text-stone-400"> · {platforms}</span>
+                        )}
+                      </div>
+                      <div className="text-[12px] text-stone-500 mt-0.5">
+                        {formatRange(c.start_date, c.end_date)} · Status: {statusLabel}
+                      </div>
+                    </div>
+                    <span className="text-stone-400" aria-hidden>→</span>
+                  </div>
+                </Link>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </Section>
   )
 }
