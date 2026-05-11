@@ -220,6 +220,35 @@ any rate is set). The detail page renders one table per non-empty
 platform with rate→fee rows + subtotal, walking
 `RATE_TYPES_PER_PLATFORM` so order is canonical (UR-30 always last).
 
+**Audit (Sprint 14b, migration 040):** `influencer_rate_card_history`
+captures every rate-card change. `PATCH /api/influencers/[id]` reads
+`rate_cards` pre-update, diffs post-update with `compareRateCards()`
+(`lib/rate-cards/types.ts`), and inserts an audit row only when the diff
+is non-empty (so re-saving identical values isn't noise). `changes`
+JSONB is flat — keys `"platform.rate_type"`, values `{old, new}`. The
+`<RateCardHistorySection>` on `/influencers/[id]` is owner/manager-only
+(`isOwnerOrManager(user)`) and shows the last 10 entries.
+
+## Brand fields (Sprint 14a, migration 039)
+`brands` carries: `name` (required), `company` + `industry` (both
+optional, added in 039), `contact_person`, `contact_email`,
+`contact_phone`, `billing_data` jsonb, `logo_url`, `notes`, `status`,
+`created_at`, `created_by`. `company` is the legal entity behind the
+brand (e.g. "Coca-Cola Romania SRL" for brand "Coca-Cola"); `industry`
+is the FMCG/Tech/Fashion bucket — both filled in over time, not at
+creation. `/campaigns/new` has an inline mini-modal that creates a
+brand with all 5 user-facing fields without leaving the campaign form
+(the Combobox `onCreate` awaits a promise resolved by the modal).
+
+## Previous campaigns lookup (Sprint 14c)
+`/influencers/[id]` aggregates `campaign_participants` (one row per
+campaign × platform) into per-campaign rows with platforms[] unions,
+sorted newest first, capped at 10. Server-side query inline in the
+page; Path A scoping via `canReadCampaign(user, { owner_id })` so
+account users only see their own. Companion REST endpoint
+`GET /api/influencers/[id]/campaigns` ships the same shape for external
+consumers.
+
 ## Rate card PDF generation (Sprint 13b)
 On-demand branded PDF export from `rate_cards`. Migration 036 created the
 `rate-cards` Supabase Storage bucket (private) plus three
