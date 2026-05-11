@@ -75,3 +75,39 @@ export function totalRateCount(cards: RateCards): number {
 export function hasAnyRate(cards: RateCards): boolean {
   return PLATFORMS.some((p) => countRatesForPlatform(cards[p]) > 0)
 }
+
+// Shape returned by compareRateCards. Keys are "<platform>.<rate_type>" so a
+// single flat lookup table is enough for both the audit row and the UI
+// rendering. `old`/`new` are null when the rate was unset on that side.
+export type RateCardChangeMap = Record<string, { old: number | null; new: number | null }>
+
+// Compare two rate-card maps and return a flat diff. Used by the API audit
+// hook on PATCH /api/influencers/[id]: if compareRateCards returns an empty
+// object we skip writing a history row (idempotent — re-saving identical
+// rate_cards isn't noise).
+export function compareRateCards(
+  before: RateCards | null | undefined,
+  after: RateCards | null | undefined,
+): RateCardChangeMap {
+  const changes: RateCardChangeMap = {}
+  const safeBefore = before ?? {}
+  const safeAfter = after ?? {}
+  for (const platform of PLATFORMS) {
+    const b = safeBefore[platform] ?? {}
+    const a = safeAfter[platform] ?? {}
+    // Union of rate-type keys seen on either side.
+    const keys = new Set<string>([...Object.keys(b), ...Object.keys(a)])
+    for (const rt of keys) {
+      const oldV = typeof b[rt] === 'number' ? b[rt] : null
+      const newV = typeof a[rt] === 'number' ? a[rt] : null
+      if (oldV !== newV) {
+        changes[`${platform}.${rt}`] = { old: oldV, new: newV }
+      }
+    }
+  }
+  return changes
+}
+
+export function hasRateCardChanges(changes: RateCardChangeMap): boolean {
+  return Object.keys(changes).length > 0
+}

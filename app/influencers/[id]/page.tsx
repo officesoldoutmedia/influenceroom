@@ -63,6 +63,7 @@ export default async function InfluencerDetailPage({
     { data: managers },
     { data: score },
     { data: history },
+    { data: rateHistory },
   ] = await Promise.all([
     supabase.from('team_members').select('name').eq('id', userId).maybeSingle(),
     supabase.from('influencers').select('*').eq('id', id).maybeSingle<Influencer>(),
@@ -76,6 +77,12 @@ export default async function InfluencerDetailPage({
     supabase
       .from('influencer_score_history')
       .select('*')
+      .eq('influencer_id', id)
+      .order('changed_at', { ascending: false })
+      .limit(10),
+    supabase
+      .from('influencer_rate_card_history')
+      .select('id, changed_at, changes, changed_by, changer:team_members!influencer_rate_card_history_changed_by_fkey(name)')
       .eq('influencer_id', id)
       .order('changed_at', { ascending: false })
       .limit(10),
@@ -241,6 +248,10 @@ export default async function InfluencerDetailPage({
 
           <RateCardsSection rateCards={i.rate_cards ?? {}} canEdit={canWrite} influencerId={id} />
 
+          {isOwnerOrManager(user) && (rateHistory ?? []).length > 0 && (
+            <RateCardHistorySection entries={(rateHistory ?? []) as RateCardHistoryEntry[]} />
+          )}
+
           <Section title="Contact">
             <div className="grid grid-cols-2 gap-3 text-sm">
               <Info label="Email" value={i.contact_email} />
@@ -381,5 +392,67 @@ function PlatformRateTable({ platform, card }: { platform: Platform; card: RateC
         </tfoot>
       </table>
     </div>
+  )
+}
+
+type RateCardHistoryEntry = {
+  id: string
+  changed_at: string
+  changes: Record<string, { old: number | null; new: number | null }> | null
+  changed_by: string | null
+  // Supabase nested-select on a many-to-one FK returns the related row
+  // either as an object or as a single-element array depending on hint —
+  // accept both shapes and unwrap below.
+  changer: { name: string } | { name: string }[] | null
+}
+
+function RateCardHistorySection({ entries }: { entries: RateCardHistoryEntry[] }) {
+  // Owner/manager-only audit list — shown collapsed by default. Format:
+  // "8 mai 2026, 18:23 — Ramona R. a modificat Instagram.video: 2500€ → 2700€"
+  // Multi-key changes get one row per key for readability.
+  return (
+    <details className="bg-white rounded-2xl shadow-sm p-6 mb-4">
+      <summary className="cursor-pointer flex items-center justify-between gap-2 list-none">
+        <h2 className="text-sm font-semibold text-stone-900 uppercase tracking-wide">
+          Istoric modificări tarife ({entries.length})
+        </h2>
+        <span className="text-[11px] text-stone-400">click pentru detalii</span>
+      </summary>
+      <ul className="mt-4 space-y-2 text-sm">
+        {entries.map((entry) => {
+          const when = new Date(entry.changed_at).toLocaleString('ro-RO', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          })
+          const changer = Array.isArray(entry.changer) ? entry.changer[0] : entry.changer
+          const who = changer?.name ?? 'Sistem'
+          const changes = entry.changes ?? {}
+          const keys = Object.keys(changes)
+          return (
+            <li key={entry.id} className="border-l-2 border-brand-200 pl-3">
+              <div className="text-[12px] text-stone-500">
+                {when} — <span className="text-stone-700 font-medium">{who}</span>
+              </div>
+              <ul className="mt-1 space-y-0.5">
+                {keys.map((k) => {
+                  const { old: oldV, new: newV } = changes[k]
+                  return (
+                    <li key={k} className="text-[13px] text-stone-700 tabular-nums">
+                      <span className="text-stone-500">{k}:</span>{' '}
+                      {oldV == null ? '—' : formatEur(oldV)}
+                      <span className="mx-1.5 text-stone-400">→</span>
+                      {newV == null ? '—' : formatEur(newV)}
+                    </li>
+                  )
+                })}
+              </ul>
+            </li>
+          )
+        })}
+      </ul>
+    </details>
   )
 }
