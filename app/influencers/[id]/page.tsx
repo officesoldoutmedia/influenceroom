@@ -220,13 +220,12 @@ export default async function InfluencerDetailPage({
                         href={e.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="block bg-stone-50 hover:bg-brand-50/40 hover:border-brand-300 border border-stone-200 rounded-lg p-3 transition-colors"
+                        className="group block bg-stone-50 hover:bg-brand-50/40 hover:border-brand-300 border border-stone-200 rounded-lg p-3 transition-colors"
                       >
                         <div className="flex items-center justify-between gap-2">
                           <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-stone-500">
                             {PLATFORM_LABEL[p as Platform]}
                           </span>
-                          <span className="text-[11px] text-brand-700">Open ↗</span>
                         </div>
                         <div className="text-sm text-stone-900 mt-1 truncate">@{e.handle}</div>
                         <div className="text-[12px] text-stone-500 tabular-nums mt-0.5">
@@ -246,6 +245,16 @@ export default async function InfluencerDetailPage({
                             </div>
                           )
                         })()}
+                        {/* "Open Profile" affordance: hidden on hover-capable
+                            devices until the card is hovered; permanently
+                            visible on touch devices where hover doesn't fire.
+                            The whole card is still the anchor — clicking the
+                            button is just clicking the same link. */}
+                        <div className="mt-3 flex justify-center">
+                          <span className="opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-brand-700 text-white text-[11px] font-medium uppercase tracking-wider">
+                            Open Profile <span aria-hidden>↗</span>
+                          </span>
+                        </div>
                       </a>
                     </li>
                   )
