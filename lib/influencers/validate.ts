@@ -93,7 +93,28 @@ function validateSocialHandles(raw: Record<string, unknown>): SocialHandles | { 
     } else if (followersRaw !== undefined && followersRaw !== null && followersRaw !== '') {
       return { error: `invalid_followers_${platform}` }
     }
-    out[platform as Platform] = { handle, url, followers }
+
+    // engagement_rate (Sprint 10 hotfix 2026-05-11): optional percent
+    // 0..100 with two decimals. Empty string / null / undefined all mean
+    // "not measured" and the key is omitted from the persisted JSONB so
+    // the UI's null-check renders cleanly.
+    const erRaw = obj.engagement_rate
+    let engagementRate: number | undefined
+    if (erRaw === undefined || erRaw === null || erRaw === '') {
+      engagementRate = undefined
+    } else if (typeof erRaw === 'number' && Number.isFinite(erRaw) && erRaw >= 0 && erRaw <= 100) {
+      // Round to 2 decimals so what's stored matches what the UI shows.
+      engagementRate = Math.round(erRaw * 100) / 100
+    } else {
+      return { error: `invalid_engagement_rate_${platform}` }
+    }
+
+    out[platform as Platform] = {
+      handle,
+      url,
+      followers,
+      ...(engagementRate !== undefined ? { engagement_rate: engagementRate } : {}),
+    }
   }
   return out
 }

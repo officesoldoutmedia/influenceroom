@@ -16,6 +16,12 @@ import {
   type Platform,
 } from '@/lib/influencers/types'
 import { formatFollowers, formatEur } from '@/lib/influencers/format'
+import {
+  ENGAGEMENT_LEVEL_COLORS,
+  ENGAGEMENT_LEVEL_LABELS,
+  engagementLevelFromRate,
+  formatEngagementRate,
+} from '@/lib/influencers/social'
 import { DetailUI } from './detail-ui'
 import { ScoreSection } from './score-section'
 import { RateCardPdfButton } from './rate-card-pdf-button'
@@ -196,6 +202,20 @@ export default async function InfluencerDetailPage({
                         <div className="text-[12px] text-stone-500 tabular-nums mt-0.5">
                           {formatFollowers(e.followers)} followers
                         </div>
+                        {(() => {
+                          const lvl = engagementLevelFromRate(e.engagement_rate)
+                          if (!lvl) return null
+                          return (
+                            <div className="text-[12px] text-stone-500 tabular-nums mt-1 flex items-center gap-1.5">
+                              <span>ER: {formatEngagementRate(e.engagement_rate)}</span>
+                              <span
+                                className={`text-[10px] uppercase tracking-wider font-medium px-1.5 py-0.5 rounded ${ENGAGEMENT_LEVEL_COLORS[lvl]}`}
+                              >
+                                {ENGAGEMENT_LEVEL_LABELS[lvl]}
+                              </span>
+                            </div>
+                          )
+                        })()}
                       </a>
                     </li>
                   )

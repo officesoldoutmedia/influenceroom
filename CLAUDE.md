@@ -328,16 +328,25 @@ mean lexical order matches chronological order.
   form has a checkbox + dropdown for this. Existing rows from before the
   migration were marked `tier_manual_override=true` to preserve the
   values the team had set manually.
-- **Social handles model** (Sprint 9 Faza 3c, migration 025):
-  `influencers.social_handles jsonb` stores per-platform handle/url/
-  followers in shape `{instagram?, tiktok?, youtube?, facebook?: {handle,
-  url, followers}}`. The old `platforms` JSONB (which carried
-  `engagement_rate`) and the standalone `primary_handle` text column were
-  dropped — handles are now structured per-platform with explicit URLs
-  for safe `target=_blank` linking. Helpers in `lib/influencers/social.ts`:
-  `inferUrl(platform, handle)`, `validateUrl(platform, url)` (HTTPS +
-  domain match), `normalizeHandle` (strips `@`), `maxFollowers`,
-  `primaryHandle` (first populated platform in canonical order).
+- **Social handles model** (Sprint 9 Faza 3c, migration 025; ER added
+  2026-05-11 — no migration, JSONB is permissive): `influencers.social_handles
+  jsonb` stores per-platform handle/url/followers/engagement_rate in shape
+  `{instagram?, tiktok?, youtube?, facebook?: {handle, url, followers,
+  engagement_rate?}}`. `engagement_rate` is the real ER as percent
+  (0..100, two decimals); distinct from `influencer_scores.score_engagement_rate`
+  which is the team's 0..100 quality rating — the two coexist on purpose so
+  the rating layer doesn't lock the team into a single quantitative source.
+  Agency-standard banding from `engagementLevelFromRate()` in
+  `lib/influencers/social.ts`: `<1 → low`, `<3 → medium`, `<6 → good`,
+  `<10 → very_good`, `≥10 → excellent`. The old `platforms` JSONB (which
+  carried a numeric `engagement_rate` on a different shape) and the
+  standalone `primary_handle` text column were dropped — handles are now
+  structured per-platform with explicit URLs for safe `target=_blank`
+  linking. Helpers in `lib/influencers/social.ts`: `inferUrl(platform,
+  handle)`, `validateUrl(platform, url)` (HTTPS + domain match),
+  `normalizeHandle` (strips `@`), `maxFollowers`, `primaryHandle` (first
+  populated platform in canonical order), `engagementLevelFromRate`,
+  `formatEngagementRate`.
 - **No campaign templates.** Campaigns start with zero task_groups and zero
   tasks (migration 018 dropped `campaign_templates`, `campaigns.template_id`,
   and the materialising RPC). Each campaign owner adds groups + tasks

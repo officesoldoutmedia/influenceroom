@@ -24,6 +24,11 @@ import {
   type ManagerSummary,
 } from '@/lib/influencers/types'
 import {
+  ENGAGEMENT_LEVEL_COLORS,
+  ENGAGEMENT_LEVEL_LABELS,
+  engagementLevelFromRate,
+} from '@/lib/influencers/social'
+import {
   RATE_TYPES_PER_PLATFORM,
   RATE_TYPE_LABELS,
   RATE_TYPE_DESCRIPTIONS,
@@ -277,6 +282,28 @@ export function InfluencerFormFields({
     })
   }
 
+  function setEngagementRate(p: Platform, val: string) {
+    const cur = form.social_handles[p] ?? { handle: '', url: '', followers: 0 }
+    // Empty input → remove the field entirely so the validator drops it
+    // from the persisted JSONB. Non-empty → coerce to number; we let the
+    // validator do the 0..100 bounds check on submit and just keep the
+    // raw entry between renders.
+    if (val === '') {
+      const { engagement_rate: _drop, ...rest } = cur
+      void _drop
+      set({
+        ...form,
+        social_handles: { ...form.social_handles, [p]: rest as SocialHandle },
+      })
+      return
+    }
+    const num = Number(val)
+    set({
+      ...form,
+      social_handles: { ...form.social_handles, [p]: { ...cur, engagement_rate: num } },
+    })
+  }
+
   const autoTier = useMemo(() => calcTier(maxFollowers(form.social_handles)), [form.social_handles])
 
   return (
@@ -393,6 +420,12 @@ export function InfluencerFormFields({
                       value={entry?.followers ?? 0}
                       onChange={(e) => setFollowers(p, e.target.value)}
                       className={inputCls}
+                    />
+                  </Field>
+                  <Field label="Engagement %">
+                    <EngagementRateInput
+                      value={entry?.engagement_rate}
+                      onChange={(v) => setEngagementRate(p, v)}
                     />
                   </Field>
                   {!urlValid && (
@@ -647,6 +680,69 @@ function RateCardsFields({
           </div>
         )
       })}
+    </div>
+  )
+}
+
+// ER input with a live level badge preview to the right of the field. The
+// badge appears as soon as the typed value falls in a valid 0..100 band; an
+// empty / invalid input shows no badge. Two decimals (step 0.01) match the
+// validator's storage precision.
+function EngagementRateInput({
+  value,
+  onChange,
+}: {
+  value: number | undefined
+  onChange: (next: string) => void
+}) {
+  // Keep a local draft string so users can type "0." or "3." without the
+  // controlled value re-rendering them away from the decimal point.
+  const [draft, setDraft] = useState<string>(value == null ? '' : String(value))
+
+  const numericDraft = draft === '' ? null : Number(draft)
+  const previewRate = numericDraft != null && Number.isFinite(numericDraft) ? numericDraft : null
+  const outOfRange = previewRate != null && (previewRate < 0 || previewRate > 100)
+  const level = !outOfRange ? engagementLevelFromRate(previewRate) : null
+
+  return (
+    <div className="flex items-center gap-2">
+      <div className="relative flex-1">
+        <input
+          type="number"
+          inputMode="decimal"
+          min={0}
+          max={100}
+          step={0.01}
+          value={draft}
+          onChange={(e) => {
+            setDraft(e.target.value)
+            onChange(e.target.value)
+          }}
+          onBlur={() => {
+            // Sync local draft with the canonical value (round to 2 dp)
+            // so e.g. "3.4500" tidies up to "3.45" on blur.
+            if (draft === '') return
+            const n = Number(draft)
+            if (Number.isFinite(n)) setDraft(String(Math.round(n * 100) / 100))
+          }}
+          placeholder="ex: 3.45"
+          className={`${outOfRange ? inputErrorCls : inputCls} pr-7`}
+          aria-invalid={outOfRange}
+        />
+        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[12px] text-stone-400 pointer-events-none">
+          %
+        </span>
+      </div>
+      {level && (
+        <span
+          className={`text-[10px] uppercase tracking-wider font-medium px-2 py-0.5 rounded-full whitespace-nowrap ${ENGAGEMENT_LEVEL_COLORS[level]}`}
+        >
+          {ENGAGEMENT_LEVEL_LABELS[level]}
+        </span>
+      )}
+      {outOfRange && (
+        <span className="text-[11px] text-rose-600 whitespace-nowrap">0–100</span>
+      )}
     </div>
   )
 }
