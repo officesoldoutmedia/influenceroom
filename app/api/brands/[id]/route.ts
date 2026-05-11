@@ -23,6 +23,8 @@ export async function PATCH(
 
   let body: {
     name?: string
+    company?: string | null
+    industry?: string | null
     contact_person?: string | null
     contact_email?: string | null
     contact_phone?: string | null
@@ -43,6 +45,12 @@ export async function PATCH(
     const n = body.name.trim()
     if (!n) return NextResponse.json({ ok: false, error: 'invalid_name' }, { status: 400 })
     update.name = n
+  }
+  if (body.company !== undefined) {
+    update.company = body.company?.toString().trim() || null
+  }
+  if (body.industry !== undefined) {
+    update.industry = body.industry?.toString().trim() || null
   }
   if (body.contact_person !== undefined) {
     update.contact_person = body.contact_person?.toString().trim() || null
@@ -83,7 +91,7 @@ export async function PATCH(
     .from('brands')
     .update(update)
     .eq('id', id)
-    .select('id, name, contact_person, contact_email, contact_phone, logo_url, notes, billing_data, status, created_at')
+    .select('id, name, company, industry, contact_person, contact_email, contact_phone, logo_url, notes, billing_data, status, created_at')
     .maybeSingle()
 
   if (error) {

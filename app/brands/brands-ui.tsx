@@ -7,6 +7,8 @@ export type BrandStatus = 'active' | 'inactive'
 export type Brand = {
   id: string
   name: string
+  company: string | null
+  industry: string | null
   contact_person: string | null
   contact_email: string | null
   contact_phone: string | null
@@ -119,7 +121,16 @@ export function BrandsUI({ initialBrands, role }: { initialBrands: Brand[]; role
                         initial(b.name)
                       )}
                     </div>
-                    <span className="font-medium text-stone-900">{b.name}</span>
+                    <div className="min-w-0">
+                      <div className="font-medium text-stone-900 truncate">{b.name}</div>
+                      {(b.company || b.industry) && (
+                        <div className="text-[11px] text-stone-500 truncate">
+                          {b.company}
+                          {b.company && b.industry && ' · '}
+                          {b.industry}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </td>
                 <td className="px-4 py-3 text-stone-600">
@@ -223,6 +234,8 @@ function ErrorMap(code: string): string {
 
 type FormState = {
   name: string
+  company: string
+  industry: string
   contact_person: string
   contact_email: string
   contact_phone: string
@@ -234,6 +247,8 @@ type FormState = {
 function emptyForm(): FormState {
   return {
     name: '',
+    company: '',
+    industry: '',
     contact_person: '',
     contact_email: '',
     contact_phone: '',
@@ -246,6 +261,8 @@ function emptyForm(): FormState {
 function brandToForm(b: Brand): FormState {
   return {
     name: b.name,
+    company: b.company ?? '',
+    industry: b.industry ?? '',
     contact_person: b.contact_person ?? '',
     contact_email: b.contact_email ?? '',
     contact_phone: b.contact_phone ?? '',
@@ -258,14 +275,22 @@ function brandToForm(b: Brand): FormState {
 function BrandFields({ form, set }: { form: FormState; set: (f: FormState) => void }) {
   return (
     <>
-      <Field label="Name *">
+      <Field label="Nume brand *">
         <input value={form.name} onChange={(e) => set({ ...form, name: e.target.value })} required className={inputCls} />
       </Field>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Contact person">
+        <Field label="Companie / client">
+          <input value={form.company} onChange={(e) => set({ ...form, company: e.target.value })} className={inputCls} placeholder="ex: Coca-Cola Romania SRL" />
+        </Field>
+        <Field label="Industrie">
+          <input value={form.industry} onChange={(e) => set({ ...form, industry: e.target.value })} className={inputCls} placeholder="ex: FMCG, Tech, Fashion" />
+        </Field>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Persoană contact">
           <input value={form.contact_person} onChange={(e) => set({ ...form, contact_person: e.target.value })} className={inputCls} />
         </Field>
-        <Field label="Contact email">
+        <Field label="Email contact">
           <input type="email" value={form.contact_email} onChange={(e) => set({ ...form, contact_email: e.target.value })} className={inputCls} />
         </Field>
       </div>

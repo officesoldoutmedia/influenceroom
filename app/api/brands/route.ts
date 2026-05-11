@@ -19,6 +19,8 @@ export async function POST(req: NextRequest) {
 
   let body: {
     name?: string
+    company?: string
+    industry?: string
     contact_person?: string
     contact_email?: string
     contact_phone?: string
@@ -55,6 +57,8 @@ export async function POST(req: NextRequest) {
     .from('brands')
     .insert({
       name,
+      company: body.company?.trim() || null,
+      industry: body.industry?.trim() || null,
       contact_person: body.contact_person?.trim() || null,
       contact_email: body.contact_email?.trim() || null,
       contact_phone: body.contact_phone?.trim() || null,
@@ -64,7 +68,7 @@ export async function POST(req: NextRequest) {
       status,
       created_by: createdBy,
     })
-    .select('id, name, contact_person, contact_email, contact_phone, logo_url, notes, billing_data, status, created_at')
+    .select('id, name, company, industry, contact_person, contact_email, contact_phone, logo_url, notes, billing_data, status, created_at')
     .single()
 
   if (error) {

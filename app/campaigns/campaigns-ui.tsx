@@ -395,6 +395,14 @@ function NewCampaignModal({
   const [internalNotes, setInternalNotes] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  // State for the inline "Crează brand nou" mini-dialog. Tracks pending
+  // resolve/reject so the Combobox can `await onCreate` while the user
+  // fills in the 5-field form. resolved by saveBrand / cancelBrand below.
+  const [brandModal, setBrandModal] = useState<{
+    open: boolean
+    name: string
+    resolve: ((b: ComboboxItem | null) => void) | null
+  }>({ open: false, name: '', resolve: null })
 
   const ownerCandidates = role === 'owner' || role === 'manager'
     ? members
@@ -441,21 +449,13 @@ function NewCampaignModal({
             items={brandList.map((b): ComboboxItem => ({ id: b.id, label: b.name }))}
             value={brandId}
             onChange={setBrandId}
-            onCreate={async (q) => {
-              const res = await fetch('/api/brands', {
-                method: 'POST',
-                headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({ name: q }),
+            onCreate={(q) =>
+              new Promise<ComboboxItem | null>((resolve) => {
+                // Hand off to the mini-modal — Combobox await-s this promise
+                // and inserts the returned item when the user saves.
+                setBrandModal({ open: true, name: q, resolve })
               })
-              const data = (await res.json().catch(() => ({}))) as {
-                ok?: boolean
-                brand?: { id: string; name: string }
-              }
-              if (!res.ok || !data.brand) return null
-              const created = { id: data.brand.id, name: data.brand.name }
-              setBrandList((prev) => [...prev, created])
-              return { id: created.id, label: created.name }
-            }}
+            }
             createLabel={(q) => <>+ Crează brand nou: <strong>{q}</strong></>}
           />
           <Field label="Nume *">
@@ -492,6 +492,141 @@ function NewCampaignModal({
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className={btnSecondary}>Cancel</button>
             <button type="submit" disabled={busy} className={btnPrimary}>{busy ? '...' : 'Create'}</button>
+          </div>
+        </form>
+      </div>
+      {brandModal.open && (
+        <InlineBrandModal
+          initialName={brandModal.name}
+          onCancel={() => {
+            brandModal.resolve?.(null)
+            setBrandModal({ open: false, name: '', resolve: null })
+          }}
+          onCreated={(brand) => {
+            setBrandList((prev) => [...prev, brand])
+            brandModal.resolve?.({ id: brand.id, label: brand.name })
+            setBrandModal({ open: false, name: '', resolve: null })
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+function InlineBrandModal({
+  initialName,
+  onCancel,
+  onCreated,
+}: {
+  initialName: string
+  onCancel: () => void
+  onCreated: (brand: { id: string; name: string }) => void
+}) {
+  const [name, setName] = useState(initialName)
+  const [company, setCompany] = useState('')
+  const [industry, setIndustry] = useState('')
+  const [contactPerson, setContactPerson] = useState('')
+  const [contactEmail, setContactEmail] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!name.trim()) {
+      setError('Nume brand obligatoriu')
+      return
+    }
+    setBusy(true)
+    setError(null)
+    const res = await fetch('/api/brands', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        name: name.trim(),
+        company: company.trim() || null,
+        industry: industry.trim() || null,
+        contact_person: contactPerson.trim() || null,
+        contact_email: contactEmail.trim() || null,
+      }),
+    })
+    const data = (await res.json().catch(() => ({}))) as {
+      ok?: boolean
+      error?: string
+      brand?: { id: string; name: string }
+    }
+    setBusy(false)
+    if (res.ok && data.brand) {
+      onCreated({ id: data.brand.id, name: data.brand.name })
+      return
+    }
+    setError(data.error === 'invalid_email' ? 'Email contact invalid' : 'Eroare server')
+  }
+
+  // Nested modal — sits above the campaign-new dialog. Higher z-index +
+  // own backdrop so Esc/click-out only dismisses this one.
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-[60] bg-stone-900/40 flex items-start justify-center p-4 overflow-y-auto"
+      onClick={onCancel}
+    >
+      <div
+        className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md my-8"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 className="font-display text-lg text-stone-900 mb-4">Brand nou</h3>
+        <form onSubmit={submit} className="space-y-3">
+          <Field label="Nume brand *">
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              autoFocus
+              className={inputCls}
+            />
+          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Companie / client">
+              <input
+                value={company}
+                onChange={(e) => setCompany(e.target.value)}
+                className={inputCls}
+                placeholder="ex: Coca-Cola Romania"
+              />
+            </Field>
+            <Field label="Industrie">
+              <input
+                value={industry}
+                onChange={(e) => setIndustry(e.target.value)}
+                className={inputCls}
+                placeholder="ex: FMCG"
+              />
+            </Field>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Persoană contact">
+              <input
+                value={contactPerson}
+                onChange={(e) => setContactPerson(e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+            <Field label="Email contact">
+              <input
+                type="email"
+                value={contactEmail}
+                onChange={(e) => setContactEmail(e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+          </div>
+          {error && <p className="text-sm text-rose-600">{error}</p>}
+          <div className="flex justify-end gap-2 pt-2">
+            <button type="button" onClick={onCancel} className={btnSecondary}>Anulează</button>
+            <button type="submit" disabled={busy} className={btnPrimary}>
+              {busy ? '...' : 'Crează brand'}
+            </button>
           </div>
         </form>
       </div>

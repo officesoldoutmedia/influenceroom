@@ -26,7 +26,7 @@ export default async function BrandsPage() {
 
   const { data: brands } = await supabase
     .from('brands')
-    .select('id, name, contact_person, contact_email, contact_phone, logo_url, notes, billing_data, status, created_at')
+    .select('id, name, company, industry, contact_person, contact_email, contact_phone, logo_url, notes, billing_data, status, created_at')
     .order('created_at', { ascending: false })
 
   return (
