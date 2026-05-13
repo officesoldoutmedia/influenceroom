@@ -31,7 +31,6 @@ import {
   RATE_TYPES_PER_PLATFORM,
   RATE_TYPE_LABELS,
   countRatesForPlatform,
-  totalRatesForPlatform,
   totalRateCount,
   hasAnyRate,
   type RateCard,
@@ -389,10 +388,13 @@ function RateCardsSection({
 function PlatformRateTable({ platform, card }: { platform: Platform; card: RateCard }) {
   // Walk the canonical rate-type order so the table is consistent across
   // influencers and platforms (UR-30 always last, etc).
+  //
+  // Stefan 2026-05-13: subtotal row dropped here too (matches the PDF tweak
+  // from Sprint 13b polish). Sums aren't relevant — each rate is its own
+  // line-item price; team computes their own combinations.
   const rows = (RATE_TYPES_PER_PLATFORM[platform] as readonly string[])
     .map((rt) => ({ rt, value: card[rt] }))
     .filter((r): r is { rt: string; value: number } => typeof r.value === 'number')
-  const subtotal = totalRatesForPlatform(card)
   return (
     <div className="border border-stone-200 rounded-lg overflow-hidden">
       <div className="px-3 py-2 bg-stone-50 border-b border-stone-200 flex items-center justify-between">
@@ -412,14 +414,6 @@ function PlatformRateTable({ platform, card }: { platform: Platform; card: RateC
             </tr>
           ))}
         </tbody>
-        <tfoot>
-          <tr className="bg-stone-50 border-t border-stone-200">
-            <td className="px-3 py-2 text-[12px] text-stone-500 uppercase tracking-wide">Subtotal</td>
-            <td className="px-3 py-2 text-stone-900 font-medium tabular-nums text-right">
-              {formatEur(subtotal)}
-            </td>
-          </tr>
-        </tfoot>
       </table>
     </div>
   )
