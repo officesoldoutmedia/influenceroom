@@ -17,6 +17,7 @@ import { ParticipantsUI } from './participants-ui'
 import { DeliverablesUI } from './deliverables-ui'
 import { MilestonesUI } from './milestones-ui'
 import { CampaignTabsShell } from './tabs-shell'
+import { CampaignAuditTab } from './campaign-audit-tab'
 import { formatEur } from '@/lib/influencers/format'
 import { canReadCampaign } from '@/lib/auth/scope'
 
@@ -210,6 +211,7 @@ export default async function CampaignDetailPage({
                 currentUserId={userId}
               />
             }
+            audit={<CampaignAuditTab campaignId={campaign.id} />}
           />
         </div>
       </main>
