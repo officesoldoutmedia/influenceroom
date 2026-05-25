@@ -15,10 +15,17 @@ import {
   type Tier,
   type Influencer,
   type ManagerSummary,
+  type SocialHandles,
 } from '@/lib/influencers/types'
 import { formatFollowers } from '@/lib/influencers/format'
 import { Avatar, EmptyState, Button } from '@/lib/ui'
 import { CATEGORY_COLORS, CATEGORY_LABELS, type ScoreCategory } from '@/lib/scoring/types'
+import { PlatformLinks } from './platform-links'
+import {
+  getPrimaryEngagement,
+  ENGAGEMENT_LEVEL_COLORS,
+  ENGAGEMENT_LEVEL_LABELS,
+} from '@/lib/influencers/social'
 import {
   emptyForm,
   formToPayload,
@@ -165,10 +172,13 @@ export function InfluencersUI({
                       const ph = primaryHandle(i.social_handles ?? {})
                       return ph ? (
                         <div className="text-[12px] text-stone-500 truncate mt-0.5">
-                          @{ph.entry.handle} · {PLATFORM_LABEL[ph.platform]}
+                          @{ph.entry.handle}
                         </div>
                       ) : null
                     })()}
+                    <div className="mt-1.5">
+                      <PlatformLinks social_handles={i.social_handles} name={i.name} />
+                    </div>
                     <div className="mt-2 flex items-center justify-between text-[12px] text-stone-500 gap-2">
                       <span className="truncate">
                         {i.account_manager_id ? (
@@ -178,6 +188,7 @@ export function InfluencersUI({
                         )}
                       </span>
                       <span className="shrink-0 flex items-center gap-2">
+                        <ErBadge social_handles={i.social_handles} />
                         <ScoreCell row={scoresById.get(i.id)} />
                         <span className="tabular-nums">{primaryFollowers(i)}</span>
                       </span>
@@ -195,10 +206,12 @@ export function InfluencersUI({
                 <tr className="text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-stone-500">
                   <th className="px-4 py-3">Nume</th>
                   <th className="px-4 py-3">Handle</th>
+                  <th className="px-4 py-3">Platforme</th>
                   <th className="px-4 py-3">Tier</th>
                   <th className="px-4 py-3">Manager</th>
-                  <th className="px-4 py-3">Niche</th>
+                  <th className="px-4 py-3 hidden xl:table-cell">Niche</th>
                   <th className="px-4 py-3 text-right">Followers</th>
+                  <th className="px-4 py-3">ER</th>
                   <th className="px-4 py-3">Scor</th>
                   <th className="px-4 py-3">Status</th>
                 </tr>
@@ -222,6 +235,9 @@ export function InfluencersUI({
                       })()}
                     </td>
                     <td className="px-4 py-3">
+                      <PlatformLinks social_handles={i.social_handles} name={i.name} showEmptyPlaceholder />
+                    </td>
+                    <td className="px-4 py-3">
                       {i.tier && (
                         <span className={`text-[10px] uppercase tracking-wide font-medium px-2 py-0.5 rounded-full ${TIER_BADGE[i.tier]}`}>
                           {TIER_LABELS_SHORT[i.tier]}
@@ -235,7 +251,7 @@ export function InfluencersUI({
                         <span className="text-stone-400 italic">Neasignat</span>
                       )}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 hidden xl:table-cell">
                       <div className="flex flex-wrap gap-1">
                         {i.niche_tags.slice(0, 3).map((t) => (
                           <span key={t} className="text-[10px] bg-stone-100 text-stone-700 px-1.5 py-0.5 rounded">
@@ -247,6 +263,9 @@ export function InfluencersUI({
                     </td>
                     <td className="px-4 py-3 text-stone-600 text-right tabular-nums">
                       {primaryFollowers(i)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <ErBadge social_handles={i.social_handles} />
                     </td>
                     <td className="px-4 py-3">
                       <ScoreCell row={scoresById.get(i.id)} />
@@ -325,6 +344,20 @@ function ScoreCell({ row }: { row: { total_score: number; category: string } | u
       <span className={`text-[10px] uppercase tracking-wide font-medium px-1.5 py-0.5 rounded ${CATEGORY_COLORS[cat] ?? 'bg-stone-100 text-stone-600'}`}>
         {CATEGORY_LABELS[cat] ?? cat}
       </span>
+    </span>
+  )
+}
+
+function ErBadge({ social_handles }: { social_handles: SocialHandles | null | undefined }) {
+  const er = getPrimaryEngagement(social_handles)
+  if (!er) return null
+  const title = `${ENGAGEMENT_LEVEL_LABELS[er.level]} pe ${PLATFORM_LABEL[er.platform]} · ${er.rate.toFixed(1)}%`
+  return (
+    <span
+      title={title}
+      className={`inline-block px-2 py-0.5 rounded-full text-[10px] uppercase tracking-wide font-medium ${ENGAGEMENT_LEVEL_COLORS[er.level]}`}
+    >
+      ER · {er.rate.toFixed(1)}%
     </span>
   )
 }

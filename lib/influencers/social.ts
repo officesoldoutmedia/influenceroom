@@ -133,3 +133,24 @@ export function primaryHandle(handles: SocialHandles): { platform: Platform; ent
   }
   return null
 }
+
+/**
+ * ER badge helper pentru lista influenceri (§4 quick-win): întoarce
+ * engagement_rate-ul + level-ul pentru platforma primară (handle-ul
+ * afişat pe row). Returns null când lipseşte orice piesă, ca UI-ul să
+ * facă short-circuit fără să rendeze badge gol.
+ */
+export function getPrimaryEngagement(handles: SocialHandles | null | undefined): {
+  platform: Platform
+  rate: number
+  level: EngagementLevel
+} | null {
+  if (!handles) return null
+  const ph = primaryHandle(handles)
+  if (!ph) return null
+  const rate = handles[ph.platform]?.engagement_rate
+  if (rate == null) return null
+  const level = engagementLevelFromRate(rate)
+  if (!level) return null
+  return { platform: ph.platform, rate, level }
+}
