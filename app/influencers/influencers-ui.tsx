@@ -38,6 +38,7 @@ type Filters = {
   status: string | null
   manager: string | null
   scoreCategory: string | null
+  sortBy: string | null
   page: number
 }
 
@@ -96,6 +97,7 @@ export function InfluencersUI({
     if (merged.status) params.set('status', merged.status)
     if (merged.manager) params.set('manager', merged.manager)
     if (merged.scoreCategory) params.set('score_category', merged.scoreCategory)
+    if (merged.sortBy && merged.sortBy !== 'tier') params.set('sort', merged.sortBy)
     if (merged.page > 1) params.set('page', String(merged.page))
     const qs = params.toString()
     router.push(qs ? `${pathname}?${qs}` : pathname)
@@ -356,6 +358,7 @@ function FilterBar({
   const [tags, setTags] = useState<string[]>(filters.tags)
   const [manager, setManager] = useState<string>(filters.manager ?? '')
   const [scoreCategory, setScoreCategory] = useState<string>(filters.scoreCategory ?? '')
+  const [sort, setSort] = useState<string>(filters.sortBy ?? 'tier')
 
   // Debounce search input
   useEffect(() => {
@@ -395,7 +398,8 @@ function FilterBar({
     setTags([])
     setManager('')
     setScoreCategory('')
-    onApply({ q: null, tiers: [], platform: null, fmin: null, fmax: null, tags: [], status: null, manager: null, scoreCategory: null, page: 1 })
+    setSort('tier')
+    onApply({ q: null, tiers: [], platform: null, fmin: null, fmax: null, tags: [], status: null, manager: null, scoreCategory: null, sortBy: null, page: 1 })
   }
 
   const hasFilter = useMemo(() => hasActiveFilter(filters), [filters])
@@ -481,6 +485,20 @@ function FilterBar({
           <option value="medium">Medium</option>
           <option value="high">High</option>
           <option value="top_performer">Top Performer</option>
+        </select>
+        <select
+          value={sort}
+          onChange={(e) => {
+            setSort(e.target.value)
+            onApply({ sortBy: e.target.value, page: 1 })
+          }}
+          className={inputCls}
+          aria-label="Sortare"
+        >
+          <option value="tier">Tier (Macro & VIP → Nano)</option>
+          <option value="recent">Cele mai noi</option>
+          <option value="followers_desc">Followers ↓</option>
+          <option value="followers_asc">Followers ↑</option>
         </select>
       </div>
 

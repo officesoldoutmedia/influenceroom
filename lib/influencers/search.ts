@@ -7,6 +7,10 @@ export const PAGE_SIZE = 20
 const SCORE_CATEGORIES = ['low', 'medium', 'high', 'top_performer'] as const
 type ScoreCategoryFilter = (typeof SCORE_CATEGORIES)[number]
 
+export const SORT_KEYS = ['tier', 'recent', 'followers_desc', 'followers_asc'] as const
+export type SortKey = (typeof SORT_KEYS)[number]
+export const DEFAULT_SORT: SortKey = 'tier'
+
 export type SearchParams = {
   q?: string | null
   tiers?: string[]
@@ -22,6 +26,8 @@ export type SearchParams = {
   // still reflect the filtered set. Influencers without a score row are
   // excluded when this filter is active.
   scoreCategory?: string | null
+  /** Sort dimension whitelist; fallback la 'tier' dacă lipsește/invalid. */
+  sortBy?: string | null
   page?: number
   // Required at every call site; applied as a final WHERE so account managers
   // only see influencers assigned to them or unassigned. Pass the result of
@@ -50,10 +56,30 @@ export async function searchInfluencers(p: SearchParams): Promise<SearchResult> 
   const status = p.status as InfluencerStatus | null
   const page = Math.max(1, p.page ?? 1)
 
+  const sortBy: SortKey = (SORT_KEYS as readonly string[]).includes(p.sortBy ?? '')
+    ? (p.sortBy as SortKey)
+    : DEFAULT_SORT
+
   let query = supabase
     .from('influencers')
     .select('*', { count: 'exact' })
-    .order('created_at', { ascending: false })
+
+  switch (sortBy) {
+    case 'recent':
+      query = query.order('created_at', { ascending: false })
+      break
+    case 'tier':
+      query = query
+        .order('tier_rank', { ascending: true, nullsFirst: false })
+        .order('max_followers', { ascending: false, nullsFirst: false })
+      break
+    case 'followers_desc':
+      query = query.order('max_followers', { ascending: false, nullsFirst: false })
+      break
+    case 'followers_asc':
+      query = query.order('max_followers', { ascending: true, nullsFirst: false })
+      break
+  }
 
   if (p.q) query = query.ilike('name', `%${p.q}%`)
   if (tiers.length) query = query.in('tier', tiers)

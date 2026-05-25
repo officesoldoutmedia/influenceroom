@@ -60,6 +60,7 @@ export default async function InfluencersPage({
     status: strParam(sp.status),
     manager: strParam(sp.manager),
     scoreCategory: strParam(sp.score_category),
+    sortBy: strParam(sp.sort),
     page: numParam(sp.page) ?? 1,
   }
 
