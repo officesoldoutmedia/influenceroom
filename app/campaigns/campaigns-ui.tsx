@@ -9,6 +9,29 @@ import {
   type CampaignWithJoins,
 } from '@/lib/campaigns/types'
 import { EmptyState, Button, Combobox, type ComboboxItem } from '@/lib/ui'
+import { ConfirmModal } from '@/lib/ui/confirm-modal'
+
+function TrashIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M3 6h18" />
+      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+      <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+      <line x1="10" y1="11" x2="10" y2="17" />
+      <line x1="14" y1="11" x2="14" y2="17" />
+    </svg>
+  )
+}
 
 const STATUS_LABEL: Record<CampaignStatus, string> = {
   draft: 'draft',
@@ -71,7 +94,23 @@ export function CampaignsUI({
   useEffect(() => setItems(initialItems), [initialItems])
 
   const [showNew, setShowNew] = useState(false)
+  const [rowToDelete, setRowToDelete] = useState<CampaignWithJoins | null>(null)
+  const [rowDeleting, setRowDeleting] = useState(false)
   const totalPages = Math.max(1, Math.ceil(total / pageSize))
+
+  async function deleteRow(c: CampaignWithJoins) {
+    setRowDeleting(true)
+    const res = await fetch(`/api/campaigns/${c.id}`, { method: 'DELETE' })
+    setRowDeleting(false)
+    setRowToDelete(null)
+    if (res.ok) {
+      setItems((prev) => prev.filter((x) => x.id !== c.id))
+      router.refresh()
+    } else {
+      const data = (await res.json().catch(() => ({}))) as { error?: string }
+      alert(`Eroare: ${ErrorMap(data.error ?? 'server_error')}`)
+    }
+  }
 
   function pushFilters(next: Partial<Filters>) {
     const merged: Filters = { ...initialFilters, ...next, page: next.page ?? 1 }
@@ -117,7 +156,7 @@ export function CampaignsUI({
           {/* Mobile: cards */}
           <ul className="md:hidden space-y-2">
             {items.map((c) => (
-              <li key={c.id} className={c.status === 'cancelled' ? 'opacity-60' : ''}>
+              <li key={c.id} className={`relative ${c.status === 'cancelled' ? 'opacity-60' : ''}`}>
                 <Link
                   href={`/campaigns/${c.id}`}
                   className="block bg-white border border-stone-200 rounded-xl p-4 active:bg-stone-50 transition-colors"
@@ -133,6 +172,20 @@ export function CampaignsUI({
                     <span className="shrink-0">{c.owner?.name ?? '—'}</span>
                   </div>
                 </Link>
+                {(c.status === 'draft' || c.status === 'cancelled') && (
+                  <button
+                    type="button"
+                    aria-label="Șterge campania"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      setRowToDelete(c)
+                    }}
+                    className="absolute bottom-3 right-3 p-1.5 rounded-md text-stone-400 hover:text-rose-600 hover:bg-rose-50"
+                  >
+                    <TrashIcon className="w-4 h-4" />
+                  </button>
+                )}
               </li>
             ))}
           </ul>
@@ -149,13 +202,14 @@ export function CampaignsUI({
                   <th className="px-4 py-3">Final</th>
                   <th className="px-4 py-3">Owner</th>
                   <th className="px-4 py-3 text-right">Deliverabile</th>
+                  <th className="px-4 py-3 w-12"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100">
                 {items.map((c) => (
                   <tr
                     key={c.id}
-                    className={`hover:bg-stone-50 transition-colors ${c.status === 'cancelled' ? 'opacity-60' : ''}`}
+                    className={`group hover:bg-stone-50 transition-colors ${c.status === 'cancelled' ? 'opacity-60' : ''}`}
                   >
                     <td className="px-4 py-3">
                       <Link href={`/campaigns/${c.id}`} className="font-medium text-stone-900 hover:text-brand-800">
@@ -172,6 +226,18 @@ export function CampaignsUI({
                     <td className="px-4 py-3 text-stone-600 tabular-nums">{c.end_date ?? '—'}</td>
                     <td className="px-4 py-3 text-stone-600">{c.owner?.name ?? '—'}</td>
                     <td className="px-4 py-3 text-stone-600 text-right tabular-nums">{c.deliverables_count ?? '—'}</td>
+                    <td className="px-4 py-3 text-right">
+                      {(c.status === 'draft' || c.status === 'cancelled') && (
+                        <button
+                          type="button"
+                          aria-label="Șterge campania"
+                          onClick={() => setRowToDelete(c)}
+                          className="p-1.5 rounded-md text-stone-400 hover:text-rose-600 hover:bg-rose-50 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <TrashIcon className="w-4 h-4" />
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -202,8 +268,21 @@ export function CampaignsUI({
           onClose={() => setShowNew(false)}
           onCreated={(id) => {
             setShowNew(false)
+            router.refresh()
             router.push(`/campaigns/${id}`)
           }}
+        />
+      )}
+
+      {rowToDelete && (
+        <ConfirmModal
+          title="Ștergi campania?"
+          description={`"${rowToDelete.name}" și toate datele asociate vor fi șterse definitiv.`}
+          confirmLabel="Șterge definitiv"
+          variant="danger"
+          busy={rowDeleting}
+          onConfirm={() => deleteRow(rowToDelete)}
+          onCancel={() => setRowToDelete(null)}
         />
       )}
     </>
@@ -354,6 +433,9 @@ function ErrorMap(code: string): string {
     missing_brand: 'Selectează un brand',
     missing_name: 'Numele e obligatoriu',
     invalid_status: 'Status invalid',
+    invalid_status_for_delete: 'Doar campaniile draft sau cancelled pot fi șterse',
+    validation_failed: 'Datele introduse nu sunt valide',
+    not_found: 'Campania nu există',
     forbidden: 'Acces interzis',
     server_error: 'Eroare server',
   } as Record<string, string>)[code] ?? code
@@ -394,7 +476,8 @@ function NewCampaignModal({
   const [ownerId, setOwnerId] = useState(currentUserId)
   const [internalNotes, setInternalNotes] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
+  const [submitMode, setSubmitMode] = useState<'draft' | 'active' | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   // State for the inline "Crează brand nou" mini-dialog. Tracks pending
   // resolve/reject so the Combobox can `await onCreate` while the user
   // fills in the 5-field form. resolved by saveBrand / cancelBrand below.
@@ -408,20 +491,34 @@ function NewCampaignModal({
     ? members
     : members.filter((m) => m.id === currentUserId)
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault()
+  function fieldErrorMessage(field: string, code: string): string {
+    if (field === 'start_date' && code === 'missing') return 'Selectează data de start'
+    if (field === 'end_date' && code === 'missing') return 'Selectează data de final'
+    if (field === 'end_date' && code === 'before_start') return 'Data de final trebuie să fie după start'
+    if (field === 'brand_id' && code === 'missing') return 'Selectează un brand'
+    if (field === 'name' && code === 'missing') return 'Numele este obligatoriu'
+    return `${field}: ${code}`
+  }
+
+  async function submit(mode: 'draft' | 'active') {
     if (!brandId) {
       setError('Selectează un brand')
       return
     }
-    setBusy(true)
+    if (!name.trim()) {
+      setError('Numele este obligatoriu')
+      return
+    }
+    setSubmitMode(mode)
     setError(null)
+    setFieldErrors({})
     const res = await fetch('/api/campaigns', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         brand_id: brandId,
         name,
+        status: mode,
         start_date: startDate || null,
         end_date: endDate || null,
         total_budget: budget === '' ? null : Number(budget),
@@ -431,17 +528,31 @@ function NewCampaignModal({
         internal_notes: internalNotes || null,
       }),
     })
-    const data = (await res.json().catch(() => ({}))) as ApiResp<{ id: string }>
-    setBusy(false)
-    if (res.ok && data.campaign?.id) onCreated(data.campaign.id)
-    else setError(ErrorMap(data.error ?? 'server_error'))
+    const data = (await res.json().catch(() => ({}))) as ApiResp<{ id: string }> & {
+      errors?: { field: string; code: string }[]
+    }
+    setSubmitMode(null)
+    if (res.ok && data.campaign?.id) {
+      onCreated(data.campaign.id)
+      return
+    }
+    if (res.status === 422 && data.errors) {
+      const m: Record<string, string> = {}
+      for (const e of data.errors) {
+        m[e.field] = fieldErrorMessage(e.field, e.code)
+      }
+      setFieldErrors(m)
+      setError('Completează câmpurile lipsă pentru a activa campania')
+    } else {
+      setError(ErrorMap(data.error ?? 'server_error'))
+    }
   }
 
   return (
     <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 bg-stone-900/40 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-xl my-8" onClick={(e) => e.stopPropagation()}>
         <h2 className="font-display text-xl text-stone-900 mb-4">Campanie nouă</h2>
-        <form onSubmit={submit} className="space-y-3">
+        <form onSubmit={(e) => { e.preventDefault(); submit('draft') }} className="space-y-3">
           <Combobox
             label="Brand"
             required
@@ -464,9 +575,15 @@ function NewCampaignModal({
           <div className="grid grid-cols-2 gap-3">
             <Field label="Start (T+0)">
               <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className={inputCls} />
+              {fieldErrors.start_date && (
+                <p className="text-xs text-rose-600 mt-1">{fieldErrors.start_date}</p>
+              )}
             </Field>
             <Field label="Final">
               <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className={inputCls} />
+              {fieldErrors.end_date && (
+                <p className="text-xs text-rose-600 mt-1">{fieldErrors.end_date}</p>
+              )}
             </Field>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -489,9 +606,26 @@ function NewCampaignModal({
             <textarea value={internalNotes} onChange={(e) => setInternalNotes(e.target.value)} className={textareaCls} />
           </Field>
           {error && <p className="text-sm text-rose-600">{error}</p>}
-          <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={onClose} className={btnSecondary}>Cancel</button>
-            <button type="submit" disabled={busy} className={btnPrimary}>{busy ? '...' : 'Create'}</button>
+          <div className="flex flex-wrap justify-end gap-2 pt-2">
+            <button type="button" onClick={onClose} disabled={submitMode !== null} className={btnSecondary}>
+              Anulează
+            </button>
+            <button
+              type="button"
+              onClick={() => submit('draft')}
+              disabled={submitMode !== null}
+              className="px-3 py-1.5 rounded-lg border border-stone-300 text-stone-700 text-xs hover:bg-stone-50 disabled:opacity-60"
+            >
+              {submitMode === 'draft' ? '...' : 'Save as Draft'}
+            </button>
+            <button
+              type="button"
+              onClick={() => submit('active')}
+              disabled={submitMode !== null}
+              className={btnPrimary}
+            >
+              {submitMode === 'active' ? '...' : 'Create & Activate'}
+            </button>
           </div>
         </form>
       </div>

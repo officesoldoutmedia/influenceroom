@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CAMPAIGN_STATUSES, type CampaignStatus, type CampaignWithJoins } from '@/lib/campaigns/types'
+import { ConfirmModal } from '@/lib/ui/confirm-modal'
 
 export type SimpleBrand = { id: string; name: string }
 export type SimpleMember = { id: string; name: string; role: string }
@@ -44,6 +45,10 @@ export function CampaignDetailUI({
   const [editing, setEditing] = useState(false)
   const [statusBusy, setStatusBusy] = useState(false)
   const [cancelling, setCancelling] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [confirmActivate, setConfirmActivate] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [activating, setActivating] = useState(false)
 
   async function changeStatus(next: CampaignStatus) {
     if (next === campaign.status) return
@@ -65,13 +70,64 @@ export function CampaignDetailUI({
   async function softCancel() {
     if (!confirm(`Anulezi campaign "${campaign.name}"? (status → cancelled)`)) return
     setCancelling(true)
-    const res = await fetch(`/api/campaigns/${campaign.id}`, { method: 'DELETE' })
+    const res = await fetch(`/api/campaigns/${campaign.id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ status: 'cancelled' }),
+    })
     setCancelling(false)
     if (res.ok) {
       router.refresh()
     } else {
       const data = (await res.json().catch(() => ({}))) as ApiResp
       alert(`Eroare: ${ErrorMap(data.error ?? 'server_error')}`)
+    }
+  }
+
+  async function hardDelete() {
+    setDeleting(true)
+    const res = await fetch(`/api/campaigns/${campaign.id}`, { method: 'DELETE' })
+    setDeleting(false)
+    if (res.ok) {
+      router.push('/campaigns')
+      router.refresh()
+    } else {
+      const data = (await res.json().catch(() => ({}))) as ApiResp & { status?: string }
+      setConfirmDelete(false)
+      alert(`Eroare: ${ErrorMap(data.error ?? 'server_error')}`)
+    }
+  }
+
+  async function activate() {
+    const missing: string[] = []
+    if (!campaign.start_date) missing.push('Data de start')
+    if (!campaign.end_date) missing.push('Data de final')
+    if (missing.length > 0) {
+      setConfirmActivate(false)
+      alert(`Nu se poate activa: lipsesc ${missing.join(', ')}. Editează campania înainte.`)
+      return
+    }
+    setActivating(true)
+    const res = await fetch(`/api/campaigns/${campaign.id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ status: 'active' }),
+    })
+    setActivating(false)
+    if (res.ok) {
+      setConfirmActivate(false)
+      router.refresh()
+    } else {
+      const data = (await res.json().catch(() => ({}))) as ApiResp & {
+        errors?: { field: string; code: string }[]
+      }
+      setConfirmActivate(false)
+      if (data.errors && data.errors.length > 0) {
+        const lst = data.errors.map((e) => `${e.field}: ${e.code}`).join(', ')
+        alert(`Validare eșuată: ${lst}`)
+      } else {
+        alert(`Eroare: ${ErrorMap(data.error ?? 'server_error')}`)
+      }
     }
   }
 
@@ -88,11 +144,45 @@ export function CampaignDetailUI({
         ))}
       </select>
       <button type="button" onClick={() => setEditing(true)} className={btnPrimary}>Edit</button>
-      {campaign.status !== 'cancelled' && (
-        <button type="button" onClick={softCancel} disabled={cancelling} className={btnDanger}>
-          {cancelling ? '...' : 'Cancel'}
+
+      {campaign.status === 'draft' && (
+        <>
+          <button
+            type="button"
+            onClick={() => setConfirmActivate(true)}
+            disabled={activating}
+            className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs hover:bg-emerald-700 disabled:opacity-60"
+          >
+            {activating ? '...' : 'Activează'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setConfirmDelete(true)}
+            disabled={deleting}
+            className={btnDanger}
+          >
+            {deleting ? '...' : 'Șterge'}
+          </button>
+        </>
+      )}
+
+      {campaign.status === 'cancelled' && (
+        <button
+          type="button"
+          onClick={() => setConfirmDelete(true)}
+          disabled={deleting}
+          className={btnDanger}
+        >
+          {deleting ? '...' : 'Șterge'}
         </button>
       )}
+
+      {(campaign.status === 'active' || campaign.status === 'in_review') && (
+        <button type="button" onClick={softCancel} disabled={cancelling} className={btnDanger}>
+          {cancelling ? '...' : 'Anulează'}
+        </button>
+      )}
+
       {editing && (
         <EditModal
           campaign={campaign}
@@ -102,6 +192,30 @@ export function CampaignDetailUI({
           role={role}
           onClose={() => setEditing(false)}
           onSaved={() => { setEditing(false); router.refresh() }}
+        />
+      )}
+
+      {confirmDelete && (
+        <ConfirmModal
+          title="Ștergi campania?"
+          description={`"${campaign.name}" și toate datele asociate (participanți, livrabile, task-uri) vor fi șterse definitiv.`}
+          confirmLabel="Șterge definitiv"
+          variant="danger"
+          busy={deleting}
+          onConfirm={hardDelete}
+          onCancel={() => setConfirmDelete(false)}
+        />
+      )}
+
+      {confirmActivate && (
+        <ConfirmModal
+          title="Activezi campania?"
+          description={`"${campaign.name}" va trece în status Active și echipa va fi notificată.`}
+          confirmLabel="Activează"
+          variant="primary"
+          busy={activating}
+          onConfirm={activate}
+          onCancel={() => setConfirmActivate(false)}
         />
       )}
     </div>
