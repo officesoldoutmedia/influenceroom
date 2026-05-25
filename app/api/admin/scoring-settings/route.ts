@@ -12,6 +12,7 @@ import { createClient } from '@supabase/supabase-js'
 import { requireOwner } from '@/lib/auth/require'
 import { getCurrentUser } from '@/lib/auth/scope'
 import type { ScoringSettings } from '@/lib/scoring/types'
+import { logWeightsChange, type Weights, type WeightKey, WEIGHT_KEYS } from '@/lib/scoring/audit'
 
 function admin() {
   return createClient(
@@ -21,17 +22,9 @@ function admin() {
   )
 }
 
-const WEIGHT_FIELDS = [
-  'weight_engagement_rate',
-  'weight_cpv',
-  'weight_audience_ro',
-  'weight_punctuality',
-  'weight_deliverable_quality',
-  'weight_collaboration_history',
-] as const
-
-type WeightField = (typeof WEIGHT_FIELDS)[number]
-type PatchBody = Partial<Record<WeightField, number>>
+// Single source of truth pentru cheile de weights — împărtăşit cu audit
+// log-ul (§5) ca să nu se desincronizeze listele dacă apare a 7-a pondere.
+type PatchBody = Partial<Record<WeightKey, number>>
 
 export async function GET() {
   const denied = await requireOwner()
@@ -68,7 +61,7 @@ export async function PATCH(req: NextRequest) {
   }
 
   const update: Record<string, number | string> = {}
-  for (const f of WEIGHT_FIELDS) {
+  for (const f of WEIGHT_KEYS) {
     if (!(f in body)) continue
     const v = body[f]
     if (
@@ -88,6 +81,14 @@ export async function PATCH(req: NextRequest) {
   update.updated_by = user.id
 
   const supabase = admin()
+
+  // §5 audit: fetch current weights pre-update
+  const { data: settingsBefore } = await supabase
+    .from('scoring_settings')
+    .select(WEIGHT_KEYS.join(', '))
+    .eq('id', 1)
+    .maybeSingle<Weights>()
+
   const { data: settings, error } = await supabase
     .from('scoring_settings')
     .update(update)
@@ -100,6 +101,24 @@ export async function PATCH(req: NextRequest) {
       { ok: false, error: 'server_error', detail: error.message },
       { status: 500 },
     )
+  }
+
+  // §5 audit weights (best-effort, nu blocheaza response-ul)
+  if (settingsBefore && settings) {
+    const settingsRecord = settings as unknown as Record<string, number>
+    const after: Weights = {
+      weight_engagement_rate: settingsRecord.weight_engagement_rate,
+      weight_cpv: settingsRecord.weight_cpv,
+      weight_audience_ro: settingsRecord.weight_audience_ro,
+      weight_punctuality: settingsRecord.weight_punctuality,
+      weight_deliverable_quality: settingsRecord.weight_deliverable_quality,
+      weight_collaboration_history: settingsRecord.weight_collaboration_history,
+    }
+    await logWeightsChange({
+      before: settingsBefore,
+      after,
+      changedBy: user.id,
+    })
   }
 
   // Bulk recalc — fan out across every influencer so category bands stay

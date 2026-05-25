@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { headers } from 'next/headers'
 import { createClient } from '@supabase/supabase-js'
 import { requireCampaignWriter } from '@/lib/auth/campaign'
 import {
@@ -6,6 +7,7 @@ import {
   SOCIAL_PLATFORMS,
   type ParticipantStatus,
 } from '@/lib/campaigns/types'
+import { logCostChange } from '@/lib/campaigns/audit'
 
 function admin() {
   return createClient(
@@ -51,12 +53,18 @@ export async function PATCH(
 
   const { data: current } = await supabase
     .from('campaign_participants')
-    .select('campaign_id, publish_date, post_url')
+    .select('campaign_id, publish_date, post_url, agreed_fee')
     .eq('id', participant_id)
-    .maybeSingle()
+    .maybeSingle<{
+      campaign_id: string
+      publish_date: string | null
+      post_url: string | null
+      agreed_fee: number | null
+    }>()
   if (!current || current.campaign_id !== id) {
     return NextResponse.json({ ok: false, error: 'not_found' }, { status: 404 })
   }
+  const previousFee = current.agreed_fee ?? null
 
   const update: Record<string, unknown> = {}
   if (body.platform !== undefined) {
@@ -110,6 +118,21 @@ export async function PATCH(
   if (!data) {
     return NextResponse.json({ ok: false, error: 'not_found' }, { status: 404 })
   }
+
+  // §5 audit cost (best-effort, nu blocheaza response-ul)
+  if (body.agreed_fee !== undefined && current.campaign_id) {
+    const h = await headers()
+    const userId = h.get('x-user-id')
+    await logCostChange({
+      campaignId: current.campaign_id,
+      participantId: participant_id,
+      costType: 'agreed_fee',
+      before: previousFee,
+      after: (data as { agreed_fee?: number | null })?.agreed_fee ?? null,
+      changedBy: userId,
+    })
+  }
+
   return NextResponse.json({ ok: true, item: data })
 }
 

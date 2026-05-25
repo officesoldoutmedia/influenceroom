@@ -5,6 +5,7 @@ import { CAMPAIGN_STATUSES, type CampaignStatus } from '@/lib/campaigns/types'
 import { requireCampaignWriter } from '@/lib/auth/campaign'
 import { enqueueNotification } from '@/lib/notifications/enqueue'
 import { APP_URL } from '@/lib/email/client'
+import { logCostChange } from '@/lib/campaigns/audit'
 
 function admin() {
   return createClient(
@@ -138,10 +139,11 @@ export async function PATCH(
   // Capture previous status to detect draft → active transition for hooks
   const { data: prev } = await supabase
     .from('campaigns')
-    .select('status')
+    .select('status, total_budget')
     .eq('id', id)
-    .maybeSingle<{ status: string }>()
+    .maybeSingle<{ status: string; total_budget: number | null }>()
   const previousStatus = prev?.status ?? null
+  const previousBudget = prev?.total_budget ?? null
 
   const { data, error } = await supabase
     .from('campaigns')
@@ -171,11 +173,24 @@ export async function PATCH(
     return NextResponse.json({ ok: false, error: 'not_found' }, { status: 404 })
   }
 
+  // Hoist headers() apel pentru audit + hook (acelaşi userId folosit în ambele).
+  const h = await headers()
+  const userId = h.get('x-user-id')
+
+  // §5 audit cost (best-effort, nu blocheaza response-ul)
+  if (body.total_budget !== undefined) {
+    await logCostChange({
+      campaignId: id,
+      costType: 'total_budget',
+      before: previousBudget,
+      after: (data as { total_budget?: number | null }).total_budget ?? null,
+      changedBy: userId,
+    })
+  }
+
   // Hook: campaign_started on draft → active
   try {
     if (previousStatus === 'draft' && data.status === 'active') {
-      const h = await headers()
-      const userId = h.get('x-user-id')
       const campaignUrl = `${APP_URL}/campaigns/${data.id}`
       const ownerName = data.owner?.name ?? 'Cineva'
       const brandName = data.brand?.name ?? '—'
