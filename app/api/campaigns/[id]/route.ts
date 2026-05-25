@@ -112,6 +112,29 @@ export async function PATCH(
 
   const supabase = admin()
 
+  if (update.status === 'active') {
+    const { data: current } = await supabase
+      .from('campaigns')
+      .select('status, start_date, end_date')
+      .eq('id', id)
+      .maybeSingle<{ status: string; start_date: string | null; end_date: string | null }>()
+
+    if (current?.status === 'draft') {
+      const sd = (update.start_date as string | null | undefined) ?? current.start_date
+      const ed = (update.end_date as string | null | undefined) ?? current.end_date
+      const errors: { field: string; code: string }[] = []
+      if (!sd) errors.push({ field: 'start_date', code: 'missing' })
+      if (!ed) errors.push({ field: 'end_date', code: 'missing' })
+      if (sd && ed && sd > ed) errors.push({ field: 'end_date', code: 'before_start' })
+      if (errors.length > 0) {
+        return NextResponse.json(
+          { ok: false, error: 'validation_failed', errors },
+          { status: 422 },
+        )
+      }
+    }
+  }
+
   // Capture previous status to detect draft → active transition for hooks
   const { data: prev } = await supabase
     .from('campaigns')
@@ -205,18 +228,29 @@ export async function DELETE(
   if (denied) return denied
 
   const supabase = admin()
-  const { data, error } = await supabase
-    .from('campaigns')
-    .update({ status: 'cancelled' })
-    .eq('id', id)
-    .select('id')
-    .maybeSingle()
 
-  if (error) {
-    return NextResponse.json({ ok: false, error: 'server_error' }, { status: 500 })
+  const { data: current, error: fetchErr } = await supabase
+    .from('campaigns')
+    .select('status')
+    .eq('id', id)
+    .maybeSingle<{ status: string }>()
+
+  if (fetchErr) {
+    return NextResponse.json({ ok: false, error: 'server_error', detail: fetchErr.message }, { status: 500 })
   }
-  if (!data) {
+  if (!current) {
     return NextResponse.json({ ok: false, error: 'not_found' }, { status: 404 })
+  }
+  if (!['draft', 'cancelled'].includes(current.status)) {
+    return NextResponse.json(
+      { ok: false, error: 'invalid_status_for_delete', status: current.status },
+      { status: 409 },
+    )
+  }
+
+  const { error: delErr } = await supabase.from('campaigns').delete().eq('id', id)
+  if (delErr) {
+    return NextResponse.json({ ok: false, error: 'server_error', detail: delErr.message }, { status: 500 })
   }
   return NextResponse.json({ ok: true })
 }

@@ -37,6 +37,7 @@ export async function GET(req: NextRequest) {
 type CreateBody = {
   brand_id?: string
   name?: string
+  status?: 'draft' | 'active'
   start_date?: string | null
   end_date?: string | null
   total_budget?: number | null
@@ -44,6 +45,23 @@ type CreateBody = {
   brief?: string | null
   owner_id?: string | null
   internal_notes?: string | null
+}
+
+type FieldError = { field: string; code: string }
+
+function validateCreateBody(body: CreateBody): FieldError[] {
+  const errors: FieldError[] = []
+  if (!body.brand_id) errors.push({ field: 'brand_id', code: 'missing' })
+  if (!body.name?.trim()) errors.push({ field: 'name', code: 'missing' })
+
+  if (body.status === 'active') {
+    if (!body.start_date) errors.push({ field: 'start_date', code: 'missing' })
+    if (!body.end_date) errors.push({ field: 'end_date', code: 'missing' })
+    if (body.start_date && body.end_date && body.start_date > body.end_date) {
+      errors.push({ field: 'end_date', code: 'before_start' })
+    }
+  }
+  return errors
 }
 
 export async function POST(req: NextRequest) {
@@ -57,16 +75,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'invalid_body' }, { status: 400 })
   }
 
-  if (!body.brand_id) return NextResponse.json({ ok: false, error: 'missing_brand' }, { status: 400 })
-  if (!body.name?.trim()) return NextResponse.json({ ok: false, error: 'missing_name' }, { status: 400 })
+  const errors = validateCreateBody(body)
+  if (errors.length > 0) {
+    return NextResponse.json({ ok: false, error: 'validation_failed', errors }, { status: 422 })
+  }
 
   const h = await headers()
   const createdBy = h.get('x-user-id')
-
   const supabase = admin()
+
   const { data, error } = await supabase.rpc('create_campaign', {
-    p_brand_id: body.brand_id,
-    p_name: body.name.trim(),
+    p_brand_id: body.brand_id!,
+    p_name: body.name!.trim(),
     p_start_date: body.start_date ?? null,
     p_end_date: body.end_date ?? null,
     p_total_budget: body.total_budget ?? null,
@@ -78,6 +98,20 @@ export async function POST(req: NextRequest) {
 
   if (error) {
     return NextResponse.json({ ok: false, error: 'server_error', detail: error.message }, { status: 500 })
+  }
+
+  if (body.status === 'active' && data?.id) {
+    const { error: updErr } = await supabase
+      .from('campaigns')
+      .update({ status: 'active' })
+      .eq('id', data.id)
+    if (updErr) {
+      return NextResponse.json(
+        { ok: false, error: 'server_error', detail: updErr.message },
+        { status: 500 },
+      )
+    }
+    data.status = 'active'
   }
 
   return NextResponse.json({ ok: true, campaign: data })
