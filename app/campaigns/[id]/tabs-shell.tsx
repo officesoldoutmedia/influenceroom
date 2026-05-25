@@ -10,6 +10,7 @@ export function CampaignTabsShell({
   milestones,
   tasks,
   audit,
+  reports,
 }: {
   details: ReactNode
   participants: ReactNode
@@ -17,6 +18,7 @@ export function CampaignTabsShell({
   milestones: ReactNode
   tasks: ReactNode
   audit: ReactNode
+  reports: ReactNode
 }) {
   return (
     <Tabs defaultValue="details" className="space-y-6">
@@ -27,6 +29,7 @@ export function CampaignTabsShell({
           <TabsTrigger value="deliverables">Livrabile</TabsTrigger>
           <TabsTrigger value="milestones">Etape</TabsTrigger>
           <TabsTrigger value="tasks">Tasks</TabsTrigger>
+          <TabsTrigger value="reports">Rapoarte</TabsTrigger>
           <TabsTrigger value="audit">Istoric</TabsTrigger>
         </TabsList>
       </div>
@@ -35,6 +38,7 @@ export function CampaignTabsShell({
       <TabsContent value="deliverables">{deliverables}</TabsContent>
       <TabsContent value="milestones">{milestones}</TabsContent>
       <TabsContent value="tasks">{tasks}</TabsContent>
+      <TabsContent value="reports">{reports}</TabsContent>
       <TabsContent value="audit">{audit}</TabsContent>
     </Tabs>
   )

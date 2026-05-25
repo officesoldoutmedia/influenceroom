@@ -18,6 +18,7 @@ import { DeliverablesUI } from './deliverables-ui'
 import { MilestonesUI } from './milestones-ui'
 import { CampaignTabsShell } from './tabs-shell'
 import { CampaignAuditTab } from './campaign-audit-tab'
+import { CampaignReportsTab } from './campaign-reports-tab'
 import { formatEur } from '@/lib/influencers/format'
 import { canReadCampaign } from '@/lib/auth/scope'
 
@@ -212,6 +213,18 @@ export default async function CampaignDetailPage({
               />
             }
             audit={<CampaignAuditTab campaignId={campaign.id} />}
+            reports={
+              <CampaignReportsTab
+                campaignId={campaign.id}
+                participants={participantsArr.map((p) => ({
+                  id: p.id,
+                  platform: p.platform,
+                  account_handle: p.account_handle,
+                  is_adhoc: p.is_adhoc,
+                  influencer: p.influencer ? { name: p.influencer.name } : null,
+                }))}
+              />
+            }
           />
         </div>
       </main>

@@ -25,6 +25,7 @@ import {
 import { DetailUI } from './detail-ui'
 import { ScoreSection } from './score-section'
 import { RateCardPdfButton } from './rate-card-pdf-button'
+import { InfluencerReportsSection } from './influencer-reports-section'
 import { canReadInfluencer, isOwnerOrManager } from '@/lib/auth/scope'
 import type { InfluencerScore, ScoreHistoryEntry } from '@/lib/scoring/types'
 import {
@@ -310,6 +311,8 @@ export default async function InfluencerDetailPage({
           )}
 
           <PreviousCampaignsSection items={previousCampaigns} />
+
+          <InfluencerReportsSection influencerId={i.id} />
         </div>
       </main>
     </>
