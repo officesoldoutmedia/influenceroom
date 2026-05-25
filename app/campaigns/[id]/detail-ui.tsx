@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CAMPAIGN_STATUSES, type CampaignStatus, type CampaignWithJoins } from '@/lib/campaigns/types'
 import { ConfirmModal } from '@/lib/ui/confirm-modal'
+import { CampaignPdfButton } from './campaign-pdf-button'
 
 export type SimpleBrand = { id: string; name: string }
 export type SimpleMember = { id: string; name: string; role: string }
@@ -144,6 +145,7 @@ export function CampaignDetailUI({
         ))}
       </select>
       <button type="button" onClick={() => setEditing(true)} className={btnPrimary}>Edit</button>
+      <CampaignPdfButton campaignId={campaign.id} />
 
       {campaign.status === 'draft' && (
         <>

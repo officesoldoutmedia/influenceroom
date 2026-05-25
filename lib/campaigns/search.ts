@@ -9,6 +9,10 @@ export type CampaignSearchParams = {
   statuses?: string[]
   brand?: string | null
   owner?: string | null
+  /** YYYY-MM — limita inferioară pentru overlap cu intervalul campaniei. */
+  monthFrom?: string | null
+  /** YYYY-MM — limita superioară pentru overlap. */
+  monthTo?: string | null
   page?: number
   // Required at every call site; applied as a final WHERE so account managers
   // only see their own campaigns. Pass the result of getCurrentUser().
@@ -54,6 +58,28 @@ export async function listCampaigns(p: CampaignSearchParams): Promise<CampaignSe
   if (statuses.length) query = query.in('status', statuses)
   if (p.brand) query = query.eq('brand_id', p.brand)
   if (p.owner) query = query.eq('owner_id', p.owner)
+
+  // §11 month overlap filter. O campanie cu (start, end) overlap-uieste cu
+  // intervalul [fromStart, toEnd] dacă start <= toEnd AND (end >= fromStart OR end IS NULL).
+  const monthRegex = /^\d{4}-\d{2}$/
+  const monthFrom = p.monthFrom && monthRegex.test(p.monthFrom) ? p.monthFrom : null
+  const monthTo = p.monthTo && monthRegex.test(p.monthTo) ? p.monthTo : null
+
+  if (monthFrom) {
+    const fromStart = `${monthFrom}-01`
+    query = query.or(`end_date.gte.${fromStart},end_date.is.null`)
+  }
+  if (monthTo) {
+    const [y, m] = monthTo.split('-').map(Number)
+    const nextMonth = m === 12 ? new Date(Date.UTC(y + 1, 0, 1)) : new Date(Date.UTC(y, m, 1))
+    nextMonth.setUTCDate(nextMonth.getUTCDate() - 1)
+    const toEnd = nextMonth.toISOString().slice(0, 10)
+    query = query.lte('start_date', toEnd)
+  }
+  if (monthFrom || monthTo) {
+    query = query.not('start_date', 'is', null)
+  }
+
   query = scopeCampaignsRead(query, p.user)
 
   const from = (page - 1) * PAGE_SIZE

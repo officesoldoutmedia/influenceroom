@@ -50,6 +50,8 @@ export default async function CampaignsPage({
     statuses: arrayParam(sp.status),
     brand: strParam(sp.brand),
     owner: strParam(sp.owner),
+    monthFrom: strParam(sp.month_from),
+    monthTo: strParam(sp.month_to),
     page: numParam(sp.page) ?? 1,
   }
 

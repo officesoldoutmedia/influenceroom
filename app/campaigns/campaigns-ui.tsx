@@ -59,6 +59,8 @@ type Filters = {
   statuses: string[]
   brand: string | null
   owner: string | null
+  monthFrom: string | null
+  monthTo: string | null
   page: number
 }
 
@@ -96,7 +98,49 @@ export function CampaignsUI({
   const [showNew, setShowNew] = useState(false)
   const [rowToDelete, setRowToDelete] = useState<CampaignWithJoins | null>(null)
   const [rowDeleting, setRowDeleting] = useState(false)
+  const [reportState, setReportState] = useState<
+    { kind: 'idle' | 'loading' } | { kind: 'error'; message: string }
+  >({ kind: 'idle' })
   const totalPages = Math.max(1, Math.ceil(total / pageSize))
+
+  async function exportReport() {
+    setReportState({ kind: 'loading' })
+    try {
+      const res = await fetch('/api/campaigns/report-pdf', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          q: initialFilters.q,
+          statuses: initialFilters.statuses,
+          brand: initialFilters.brand,
+          owner: initialFilters.owner,
+          monthFrom: initialFilters.monthFrom,
+          monthTo: initialFilters.monthTo,
+        }),
+      })
+      const data = (await res.json().catch(() => ({}))) as {
+        ok?: boolean
+        signedUrl?: string
+        error?: string
+        detail?: string
+        message?: string
+      }
+      if (res.ok && data.signedUrl) {
+        window.open(data.signedUrl, '_blank', 'noopener')
+        setReportState({ kind: 'idle' })
+        return
+      }
+      setReportState({
+        kind: 'error',
+        message: data.message || data.detail || data.error || 'eroare necunoscută',
+      })
+      setTimeout(() => setReportState({ kind: 'idle' }), 5000)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'eroare reţea'
+      setReportState({ kind: 'error', message })
+      setTimeout(() => setReportState({ kind: 'idle' }), 5000)
+    }
+  }
 
   async function deleteRow(c: CampaignWithJoins) {
     setRowDeleting(true)
@@ -119,6 +163,8 @@ export function CampaignsUI({
     for (const s of merged.statuses) params.append('status', s)
     if (merged.brand) params.set('brand', merged.brand)
     if (merged.owner) params.set('owner', merged.owner)
+    if (merged.monthFrom) params.set('month_from', merged.monthFrom)
+    if (merged.monthTo) params.set('month_to', merged.monthTo)
     if (merged.page > 1) params.set('page', String(merged.page))
     const qs = params.toString()
     router.push(qs ? `${pathname}?${qs}` : pathname)
@@ -133,6 +179,9 @@ export function CampaignsUI({
         canCreate={canCreate}
         onApply={pushFilters}
         onNew={() => setShowNew(true)}
+        onExportReport={exportReport}
+        reportLoading={reportState.kind === 'loading'}
+        reportError={reportState.kind === 'error' ? reportState.message : null}
       />
 
       {items.length === 0 ? (
@@ -290,7 +339,7 @@ export function CampaignsUI({
 }
 
 function hasFilter(f: Filters): boolean {
-  return !!(f.q || f.statuses.length || f.brand || f.owner)
+  return !!(f.q || f.statuses.length || f.brand || f.owner || f.monthFrom || f.monthTo)
 }
 
 function FilterBar({
@@ -300,6 +349,9 @@ function FilterBar({
   canCreate,
   onApply,
   onNew,
+  onExportReport,
+  reportLoading,
+  reportError,
 }: {
   filters: Filters
   brands: SimpleBrand[]
@@ -307,11 +359,23 @@ function FilterBar({
   canCreate: boolean
   onApply: (next: Partial<Filters>) => void
   onNew: () => void
+  onExportReport: () => void
+  reportLoading: boolean
+  reportError: string | null
 }) {
   const [q, setQ] = useState(filters.q ?? '')
   const [statuses, setStatuses] = useState<string[]>(filters.statuses)
   const [brand, setBrand] = useState<string>(filters.brand ?? '')
   const [owner, setOwner] = useState<string>(filters.owner ?? '')
+  const [monthFrom, setMonthFrom] = useState<string>(filters.monthFrom ?? '')
+  const [monthTo, setMonthTo] = useState<string>(filters.monthTo ?? '')
+
+  function commitMonths() {
+    onApply({
+      monthFrom: monthFrom || null,
+      monthTo: monthTo || null,
+    })
+  }
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -332,7 +396,9 @@ function FilterBar({
     setStatuses([])
     setBrand('')
     setOwner('')
-    onApply({ q: null, statuses: [], brand: null, owner: null, page: 1 })
+    setMonthFrom('')
+    setMonthTo('')
+    onApply({ q: null, statuses: [], brand: null, owner: null, monthFrom: null, monthTo: null, page: 1 })
   }
 
   const showReset = useMemo(() => hasFilter(filters), [filters])
@@ -349,6 +415,17 @@ function FilterBar({
           placeholder="Caută după nume…"
           className={`${inputCls} sm:flex-1`}
         />
+        <button
+          type="button"
+          onClick={onExportReport}
+          disabled={reportLoading}
+          className="h-11 px-4 rounded-md border border-stone-300 text-stone-700 text-sm hover:bg-stone-50 whitespace-nowrap shrink-0 disabled:opacity-60"
+        >
+          {reportLoading ? 'Generez raport...' : 'Export raport PDF'}
+        </button>
+        {reportError && (
+          <span className="text-xs text-rose-700">{reportError}</span>
+        )}
         {canCreate && (
           <button
             type="button"
@@ -377,6 +454,27 @@ function FilterBar({
           <option value="">Toți ownerii</option>
           {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
         </select>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <input
+          type="month"
+          value={monthFrom}
+          onChange={(e) => setMonthFrom(e.target.value)}
+          onBlur={commitMonths}
+          placeholder="De la luna"
+          aria-label="De la luna"
+          className={inputCls}
+        />
+        <input
+          type="month"
+          value={monthTo}
+          onChange={(e) => setMonthTo(e.target.value)}
+          onBlur={commitMonths}
+          placeholder="Până la luna"
+          aria-label="Până la luna"
+          className={inputCls}
+        />
       </div>
 
       <div>

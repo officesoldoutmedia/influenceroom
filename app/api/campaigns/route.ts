@@ -24,6 +24,8 @@ export async function GET(req: NextRequest) {
       statuses: sp.getAll('status'),
       brand: sp.get('brand'),
       owner: sp.get('owner'),
+      monthFrom: sp.get('month_from'),
+      monthTo: sp.get('month_to'),
       page: Number(sp.get('page') ?? '1'),
       user,
     })
