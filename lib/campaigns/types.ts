@@ -25,10 +25,17 @@ export type Campaign = {
 
 export type BrandRef = { id: string; name: string; logo_url: string | null }
 export type TeamRef = { id: string; name: string; role: string; avatar_url: string | null }
+export type ParticipantSummary = {
+  id: string
+  influencer_id: string | null
+  influencer_name: string | null
+  is_adhoc: boolean
+}
 
 export type CampaignWithJoins = Campaign & {
   brand: BrandRef | null
   owner: TeamRef | null
+  participants?: ParticipantSummary[]
 }
 
 export type Task = {

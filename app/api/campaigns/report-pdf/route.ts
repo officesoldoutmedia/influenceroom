@@ -37,6 +37,7 @@ type Body = {
   statuses?: string[]
   brand?: string | null
   owner?: string | null
+  influencer?: string | null
   q?: string | null
 }
 
@@ -65,6 +66,7 @@ export async function POST(req: NextRequest) {
       statuses: body.statuses ?? [],
       brand: body.brand ?? null,
       owner: body.owner ?? null,
+      influencer: body.influencer ?? null,
       monthFrom: body.monthFrom ?? null,
       monthTo: body.monthTo ?? null,
       page,

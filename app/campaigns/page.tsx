@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
 import { Nav, type NavRole } from '@/app/_components/nav'
 import { listCampaigns } from '@/lib/campaigns/search'
-import { CampaignsUI, type SimpleBrand, type SimpleMember } from './campaigns-ui'
+import { CampaignsUI, type SimpleBrand, type SimpleMember, type SimpleInfluencer } from './campaigns-ui'
 
 export const dynamic = 'force-dynamic'
 
@@ -39,10 +39,11 @@ export default async function CampaignsPage({
     { auth: { persistSession: false, autoRefreshToken: false } },
   )
 
-  const [{ data: me }, { data: brands }, { data: members }] = await Promise.all([
+  const [{ data: me }, { data: brands }, { data: members }, { data: influencers }] = await Promise.all([
     supabase.from('team_members').select('name').eq('id', userId).maybeSingle(),
     supabase.from('brands').select('id, name').eq('status', 'active').order('name'),
     supabase.from('team_members').select('id, name, role').eq('active', true).order('name'),
+    supabase.from('influencers').select('id, name').order('name'),
   ])
 
   const filters = {
@@ -50,6 +51,7 @@ export default async function CampaignsPage({
     statuses: arrayParam(sp.status),
     brand: strParam(sp.brand),
     owner: strParam(sp.owner),
+    influencer: strParam(sp.influencer),
     monthFrom: strParam(sp.month_from),
     monthTo: strParam(sp.month_to),
     page: numParam(sp.page) ?? 1,
@@ -71,6 +73,7 @@ export default async function CampaignsPage({
             initialFilters={filters}
             brands={(brands ?? []) as SimpleBrand[]}
             members={(members ?? []) as SimpleMember[]}
+            influencers={(influencers ?? []) as SimpleInfluencer[]}
             currentUserId={userId}
             role={role}
           />

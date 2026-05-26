@@ -33,6 +33,28 @@ function TrashIcon({ className }: { className?: string }) {
   )
 }
 
+function ParticipantsSummary({
+  participants,
+}: {
+  participants: Array<{ influencer_name: string | null; is_adhoc: boolean }>
+}) {
+  if (participants.length === 0) {
+    return <span className="text-stone-400 italic">—</span>
+  }
+  const first = participants[0]
+  const firstName = first.influencer_name ?? (first.is_adhoc ? 'Ad-hoc' : '—')
+  const overflow = participants.length - 1
+  const fullList = participants
+    .map((p) => p.influencer_name ?? (p.is_adhoc ? 'Ad-hoc' : '—'))
+    .join(', ')
+  return (
+    <span title={fullList} className="truncate">
+      {firstName}
+      {overflow > 0 && <span className="text-stone-400"> +{overflow}</span>}
+    </span>
+  )
+}
+
 const STATUS_LABEL: Record<CampaignStatus, string> = {
   draft: 'draft',
   active: 'active',
@@ -45,6 +67,7 @@ type Role = 'owner' | 'manager' | 'account' | 'intern'
 
 export type SimpleBrand = { id: string; name: string }
 export type SimpleMember = { id: string; name: string; role: string }
+export type SimpleInfluencer = { id: string; name: string }
 
 const STATUS_BADGE: Record<CampaignStatus, string> = {
   draft: 'bg-stone-200 text-stone-700',
@@ -59,6 +82,7 @@ type Filters = {
   statuses: string[]
   brand: string | null
   owner: string | null
+  influencer: string | null
   monthFrom: string | null
   monthTo: string | null
   page: number
@@ -74,6 +98,7 @@ export function CampaignsUI({
   initialFilters,
   brands,
   members,
+  influencers,
   currentUserId,
   role,
 }: {
@@ -84,6 +109,7 @@ export function CampaignsUI({
   initialFilters: Filters
   brands: SimpleBrand[]
   members: SimpleMember[]
+  influencers: SimpleInfluencer[]
   currentUserId: string
   role: Role
 }) {
@@ -114,6 +140,7 @@ export function CampaignsUI({
           statuses: initialFilters.statuses,
           brand: initialFilters.brand,
           owner: initialFilters.owner,
+          influencer: initialFilters.influencer,
           monthFrom: initialFilters.monthFrom,
           monthTo: initialFilters.monthTo,
         }),
@@ -163,6 +190,7 @@ export function CampaignsUI({
     for (const s of merged.statuses) params.append('status', s)
     if (merged.brand) params.set('brand', merged.brand)
     if (merged.owner) params.set('owner', merged.owner)
+    if (merged.influencer) params.set('influencer', merged.influencer)
     if (merged.monthFrom) params.set('month_from', merged.monthFrom)
     if (merged.monthTo) params.set('month_to', merged.monthTo)
     if (merged.page > 1) params.set('page', String(merged.page))
@@ -176,6 +204,7 @@ export function CampaignsUI({
         filters={initialFilters}
         brands={brands}
         members={members}
+        influencers={influencers}
         canCreate={canCreate}
         onApply={pushFilters}
         onNew={() => setShowNew(true)}
@@ -220,6 +249,9 @@ export function CampaignsUI({
                     <span className="truncate">{c.brand?.name ?? '—'}</span>
                     <span className="shrink-0">{c.owner?.name ?? '—'}</span>
                   </div>
+                  <div className="mt-1 text-[12px] text-stone-500 truncate">
+                    <ParticipantsSummary participants={c.participants ?? []} />
+                  </div>
                 </Link>
                 {(c.status === 'draft' || c.status === 'cancelled') && (
                   <button
@@ -244,8 +276,9 @@ export function CampaignsUI({
             <table className="w-full text-sm">
               <thead className="bg-stone-50 border-b border-stone-200">
                 <tr className="text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-stone-500">
-                  <th className="px-4 py-3">Nume</th>
+                  <th className="px-4 py-3">Nume campanie</th>
                   <th className="px-4 py-3">Brand</th>
+                  <th className="px-4 py-3">Influenceri</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Start</th>
                   <th className="px-4 py-3">Final</th>
@@ -266,6 +299,9 @@ export function CampaignsUI({
                       </Link>
                     </td>
                     <td className="px-4 py-3 text-stone-600">{c.brand?.name ?? '—'}</td>
+                    <td className="px-4 py-3 text-stone-600">
+                      <ParticipantsSummary participants={c.participants ?? []} />
+                    </td>
                     <td className="px-4 py-3">
                       <span className={`text-[10px] uppercase tracking-wide font-medium px-2 py-0.5 rounded-full ${STATUS_BADGE[c.status]}`}>
                         {STATUS_LABEL[c.status]}
@@ -339,13 +375,14 @@ export function CampaignsUI({
 }
 
 function hasFilter(f: Filters): boolean {
-  return !!(f.q || f.statuses.length || f.brand || f.owner || f.monthFrom || f.monthTo)
+  return !!(f.q || f.statuses.length || f.brand || f.owner || f.influencer || f.monthFrom || f.monthTo)
 }
 
 function FilterBar({
   filters,
   brands,
   members,
+  influencers,
   canCreate,
   onApply,
   onNew,
@@ -356,6 +393,7 @@ function FilterBar({
   filters: Filters
   brands: SimpleBrand[]
   members: SimpleMember[]
+  influencers: SimpleInfluencer[]
   canCreate: boolean
   onApply: (next: Partial<Filters>) => void
   onNew: () => void
@@ -367,6 +405,7 @@ function FilterBar({
   const [statuses, setStatuses] = useState<string[]>(filters.statuses)
   const [brand, setBrand] = useState<string>(filters.brand ?? '')
   const [owner, setOwner] = useState<string>(filters.owner ?? '')
+  const [influencer, setInfluencer] = useState<string>(filters.influencer ?? '')
   const [monthFrom, setMonthFrom] = useState<string>(filters.monthFrom ?? '')
   const [monthTo, setMonthTo] = useState<string>(filters.monthTo ?? '')
 
@@ -396,9 +435,10 @@ function FilterBar({
     setStatuses([])
     setBrand('')
     setOwner('')
+    setInfluencer('')
     setMonthFrom('')
     setMonthTo('')
-    onApply({ q: null, statuses: [], brand: null, owner: null, monthFrom: null, monthTo: null, page: 1 })
+    onApply({ q: null, statuses: [], brand: null, owner: null, influencer: null, monthFrom: null, monthTo: null, page: 1 })
   }
 
   const showReset = useMemo(() => hasFilter(filters), [filters])
@@ -453,6 +493,17 @@ function FilterBar({
         >
           <option value="">Toți ownerii</option>
           {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+        </select>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <select
+          value={influencer}
+          onChange={(e) => { setInfluencer(e.target.value); onApply({ influencer: e.target.value || null }) }}
+          className={inputCls}
+        >
+          <option value="">Toți influencerii</option>
+          {influencers.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
         </select>
       </div>
 
