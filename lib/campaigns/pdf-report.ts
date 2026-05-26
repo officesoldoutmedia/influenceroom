@@ -73,6 +73,30 @@ function drawSafe(page: PDFPage, text: string, opts: Parameters<PDFPage['drawTex
   page.drawText(safeText(text), opts)
 }
 
+/**
+ * Truncate cu "…" dacă textul depăşeşte maxWidth, ţinând cont de safeText
+ * (string-ul efectiv desenat). Folosit per cell în tabele ca să nu se
+ * suprapună text-ul peste coloana următoare.
+ */
+function truncateToWidth(text: string, font: PDFFont, size: number, maxWidth: number): string {
+  const safe = safeText(text)
+  if (font.widthOfTextAtSize(safe, size) <= maxWidth) return safe
+  const ELLIPSIS = '…'
+  let lo = 0
+  let hi = safe.length
+  // Binary search pentru cel mai lung prefix care încape cu ellipsis.
+  while (lo < hi) {
+    const mid = Math.ceil((lo + hi) / 2)
+    const candidate = safe.slice(0, mid).trimEnd() + ELLIPSIS
+    if (font.widthOfTextAtSize(candidate, size) <= maxWidth) {
+      lo = mid
+    } else {
+      hi = mid - 1
+    }
+  }
+  return safe.slice(0, lo).trimEnd() + ELLIPSIS
+}
+
 const MONTHS_RO = ['ian', 'feb', 'mar', 'apr', 'mai', 'iun', 'iul', 'aug', 'sep', 'oct', 'noi', 'dec']
 function formatDateRo(iso: string | null): string {
   if (!iso) return '—'
@@ -323,14 +347,16 @@ function drawTable(doc: PDFDocument, assets: Assets, campaigns: ReportCampaign[]
     if (row % 2 === 1) {
       page.drawRectangle({ x: MARGIN.x, y: y - 4, width: CONTENT_WIDTH, height: 18, color: COLORS.rowAlt })
     }
-    const values = [
-      c.name.length > 22 ? c.name.slice(0, 21) + '…' : c.name,
+    const rawValues = [
+      c.name,
       c.brand_name ?? '—',
       statusLabel(c.status),
       formatPeriod(c.start_date, c.end_date),
       String(c.participants_count),
       c.total_budget != null ? formatEur(c.total_budget) : '—',
     ]
+    // Cell padding intern 6px stânga + 6px buffer dreapta = 12px deduce din w.
+    const values = rawValues.map((v, i) => truncateToWidth(v, assets.sans, 10, cols[i].w - 12))
     let cx = MARGIN.x
     for (let i = 0; i < cols.length; i++) {
       drawSafe(page, values[i], {

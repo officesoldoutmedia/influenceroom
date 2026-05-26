@@ -112,6 +112,28 @@ function drawSafe(page: PDFPage, text: string, opts: Parameters<PDFPage['drawTex
   page.drawText(safeText(text), opts)
 }
 
+/**
+ * Truncate cu "…" daca textul depaseste maxWidth. Folosit per cell in tabele
+ * ca sa nu se suprapuna textul peste coloana urmatoare.
+ */
+function truncateToWidth(text: string, font: PDFFont, size: number, maxWidth: number): string {
+  const safe = safeText(text)
+  if (font.widthOfTextAtSize(safe, size) <= maxWidth) return safe
+  const ELLIPSIS = '…'
+  let lo = 0
+  let hi = safe.length
+  while (lo < hi) {
+    const mid = Math.ceil((lo + hi) / 2)
+    const candidate = safe.slice(0, mid).trimEnd() + ELLIPSIS
+    if (font.widthOfTextAtSize(candidate, size) <= maxWidth) {
+      lo = mid
+    } else {
+      hi = mid - 1
+    }
+  }
+  return safe.slice(0, lo).trimEnd() + ELLIPSIS
+}
+
 const MONTHS_RO = ['ian', 'feb', 'mar', 'apr', 'mai', 'iun', 'iul', 'aug', 'sep', 'oct', 'noi', 'dec']
 
 function formatDateRo(iso: string | null): string {
@@ -499,13 +521,14 @@ function drawParticipantsPage(doc: PDFDocument, assets: Assets, participants: Pa
     if (row % 2 === 1) {
       page.drawRectangle({ x: MARGIN.x, y: y - 4, width: CONTENT_WIDTH, height: 18, color: COLORS.rowAlt })
     }
-    const values = [
+    const rawValues = [
       p.influencer?.name ?? (p.is_adhoc ? 'Ad-hoc' : '—'),
       p.platform,
       p.account_handle ?? '—',
       statusLabel(p.status),
       p.agreed_fee != null ? formatEur(p.agreed_fee).replace('€', '') : '—',
     ]
+    const values = rawValues.map((v, i) => truncateToWidth(v, assets.sans, 10, cols[i].w - 12))
     let cx = MARGIN.x
     for (let i = 0; i < cols.length; i++) {
       drawSafe(page, values[i], {
@@ -592,13 +615,14 @@ function drawDeliverablesPage(
     if (row % 2 === 1) {
       page.drawRectangle({ x: MARGIN.x, y: y - 4, width: CONTENT_WIDTH, height: 18, color: COLORS.rowAlt })
     }
-    const values = [
+    const rawValues = [
       participantMap.get(d.participant_id) ?? '—',
       deliverableTypeLabel(d.type, d.custom_type_label),
       String(d.quantity),
       formatDateRo(d.post_date),
       statusLabel(d.status),
     ]
+    const values = rawValues.map((v, i) => truncateToWidth(v, assets.sans, 10, cols[i].w - 12))
     let cx = MARGIN.x
     for (let i = 0; i < cols.length; i++) {
       drawSafe(page, values[i], {
@@ -677,12 +701,13 @@ function drawMilestonesPage(doc: PDFDocument, assets: Assets, milestones: Milest
     const respLabel = m.responsible === 'other' && m.responsible_name
       ? m.responsible_name
       : RESP_LABELS[m.responsible] ?? m.responsible
-    const values = [
+    const rawValues = [
       milestoneTypeLabel(m.type, m.name),
       formatDateRo(m.due_date),
       respLabel,
       m.completed_at ? formatDateRo(m.completed_at) : '—',
     ]
+    const values = rawValues.map((v, i) => truncateToWidth(v, assets.sans, 10, cols[i].w - 12))
     let cx = MARGIN.x
     for (let i = 0; i < cols.length; i++) {
       drawSafe(page, values[i], {
