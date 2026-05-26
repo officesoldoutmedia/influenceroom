@@ -48,6 +48,21 @@ function decodeWordmarkPng(): Uint8Array {
   return bytes
 }
 
+/**
+ * Standard pdf-lib fonts folosesc WinAnsi encoding care nu suporta diacritice
+ * romanesti. Mapam Ă/Â/Î/Ș/Ț la litere ASCII inainte de drawText (preventiv
+ * pentru user input cu nume diacritice — ex: "Ștefan").
+ */
+function safeText(s: string | null | undefined): string {
+  if (!s) return ''
+  return s
+    .replace(/ă/g, 'a').replace(/Ă/g, 'A')
+    .replace(/â/g, 'a').replace(/Â/g, 'A')
+    .replace(/î/g, 'i').replace(/Î/g, 'I')
+    .replace(/ș/g, 's').replace(/Ș/g, 'S').replace(/ş/g, 's').replace(/Ş/g, 'S')
+    .replace(/ț/g, 't').replace(/Ț/g, 'T').replace(/ţ/g, 't').replace(/Ţ/g, 'T')
+}
+
 // Brand palette — stays inline so the generator has zero project-config deps.
 // (#C2410C burnt amber is the locked brand-700 from the project memory.)
 const COLORS = {
@@ -399,8 +414,9 @@ type DrawTextOpts = {
 }
 
 function drawText(page: PDFPage, text: string, opts: DrawTextOpts): void {
+  const safe = safeText(text)
   if (!opts.tracking) {
-    page.drawText(text, {
+    page.drawText(safe, {
       x: opts.x,
       y: opts.y,
       font: opts.font,
@@ -412,7 +428,7 @@ function drawText(page: PDFPage, text: string, opts: DrawTextOpts): void {
   // Manual tracking by drawing one glyph at a time. Times faster than
   // shaping; only used for the few uppercase wordmark labels.
   let cursor = opts.x
-  for (const ch of text) {
+  for (const ch of safe) {
     page.drawText(ch, {
       x: cursor,
       y: opts.y,
@@ -425,9 +441,10 @@ function drawText(page: PDFPage, text: string, opts: DrawTextOpts): void {
 }
 
 function drawTextRight(page: PDFPage, text: string, opts: DrawTextOpts): void {
+  const safe = safeText(text)
   if (!opts.tracking) {
-    const width = opts.font.widthOfTextAtSize(text, opts.size)
-    page.drawText(text, {
+    const width = opts.font.widthOfTextAtSize(safe, opts.size)
+    page.drawText(safe, {
       x: opts.x - width,
       y: opts.y,
       font: opts.font,
@@ -438,16 +455,17 @@ function drawTextRight(page: PDFPage, text: string, opts: DrawTextOpts): void {
   }
   // Compute total tracked width so we can right-align the run.
   let total = 0
-  for (const ch of text) total += opts.font.widthOfTextAtSize(ch, opts.size)
-  total += opts.tracking * (text.length - 1)
-  drawText(page, text, { ...opts, x: opts.x - total })
+  for (const ch of safe) total += opts.font.widthOfTextAtSize(ch, opts.size)
+  total += opts.tracking * (safe.length - 1)
+  drawText(page, safe, { ...opts, x: opts.x - total })
 }
 
 function pickNameSize(name: string, font: PDFFont): number {
   // Auto-shrink long names so they always fit on one line within the content
   // width. The cover is the only place where the name appears at display size.
+  const safe = safeText(name)
   for (const size of [48, 42, 36, 30, 24]) {
-    const w = font.widthOfTextAtSize(name, size)
+    const w = font.widthOfTextAtSize(safe, size)
     if (w <= CONTENT_WIDTH) return size
   }
   return 22

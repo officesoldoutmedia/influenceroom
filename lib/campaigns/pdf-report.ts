@@ -54,6 +54,25 @@ function decodeWordmarkPng(): Uint8Array {
   return bytes
 }
 
+/**
+ * Standard pdf-lib fonts folosesc WinAnsi encoding care nu suporta diacritice
+ * romanesti. Mapam Ă/Â/Î/Ș/Ț la litere ASCII inainte de drawText pentru a
+ * evita crash-ul "WinAnsi cannot encode".
+ */
+function safeText(s: string | null | undefined): string {
+  if (!s) return ''
+  return s
+    .replace(/ă/g, 'a').replace(/Ă/g, 'A')
+    .replace(/â/g, 'a').replace(/Â/g, 'A')
+    .replace(/î/g, 'i').replace(/Î/g, 'I')
+    .replace(/ș/g, 's').replace(/Ș/g, 'S').replace(/ş/g, 's').replace(/Ş/g, 'S')
+    .replace(/ț/g, 't').replace(/Ț/g, 'T').replace(/ţ/g, 't').replace(/Ţ/g, 'T')
+}
+
+function drawSafe(page: PDFPage, text: string, opts: Parameters<PDFPage['drawText']>[1]): void {
+  page.drawText(safeText(text), opts)
+}
+
 const MONTHS_RO = ['ian', 'feb', 'mar', 'apr', 'mai', 'iun', 'iul', 'aug', 'sep', 'oct', 'noi', 'dec']
 function formatDateRo(iso: string | null): string {
   if (!iso) return '—'
@@ -62,7 +81,7 @@ function formatDateRo(iso: string | null): string {
   return `${d} ${MONTHS_RO[m - 1]} ${y}`
 }
 function formatPeriod(start: string | null, end: string | null): string {
-  if (!start) return 'Perioadă nedefinită'
+  if (!start) return 'Perioada nedefinita'
   if (!end) return `din ${formatDateRo(start)}`
   return `${formatDateRo(start)} – ${formatDateRo(end)}`
 }
@@ -73,16 +92,16 @@ function formatMonthRange(from: string | null | undefined, to: string | null | u
   }
   if (from && to) return from === to ? fmt(from) : `${fmt(from)} – ${fmt(to)}`
   if (from) return `din ${fmt(from)}`
-  if (to) return `până în ${fmt(to)}`
+  if (to) return `pana in ${fmt(to)}`
   return 'Toate campaniile'
 }
 
 const STATUS_LABELS_RO: Record<string, string> = {
   draft: 'Draft',
-  active: 'Activă',
-  in_review: 'În review',
-  completed: 'Finalizată',
-  cancelled: 'Anulată',
+  active: 'Activa',
+  in_review: 'In review',
+  completed: 'Finalizata',
+  cancelled: 'Anulata',
 }
 function statusLabel(s: string): string {
   return STATUS_LABELS_RO[s] ?? s
@@ -93,8 +112,9 @@ function drawTextRight(
   text: string,
   opts: { x: number; y: number; font: PDFFont; size: number; color: ReturnType<typeof rgb>; tracking?: number },
 ): void {
-  const w = opts.font.widthOfTextAtSize(text, opts.size) + (opts.tracking ?? 0) * (text.length - 1)
-  page.drawText(text, {
+  const safe = safeText(text)
+  const w = opts.font.widthOfTextAtSize(safe, opts.size) + (opts.tracking ?? 0) * (safe.length - 1)
+  page.drawText(safe, {
     x: opts.x - w,
     y: opts.y,
     font: opts.font,
@@ -107,8 +127,9 @@ function drawTextCenter(
   text: string,
   opts: { y: number; font: PDFFont; size: number; color: ReturnType<typeof rgb>; tracking?: number },
 ): void {
-  const w = opts.font.widthOfTextAtSize(text, opts.size) + (opts.tracking ?? 0) * (text.length - 1)
-  page.drawText(text, {
+  const safe = safeText(text)
+  const w = opts.font.widthOfTextAtSize(safe, opts.size) + (opts.tracking ?? 0) * (safe.length - 1)
+  page.drawText(safe, {
     x: (PAGE.width - w) / 2,
     y: opts.y,
     font: opts.font,
@@ -212,7 +233,7 @@ function drawCover(
   }
   if (filters.brandName) lines.push(`Brand: ${filters.brandName}`)
   if (filters.ownerName) lines.push(`Owner: ${filters.ownerName}`)
-  if (filters.search) lines.push(`Căutare: "${filters.search}"`)
+  if (filters.search) lines.push(`Cautare: "${filters.search}"`)
 
   let y = titleY - 50
   for (const line of lines) {
@@ -245,7 +266,7 @@ function drawTable(doc: PDFDocument, assets: Assets, campaigns: ReportCampaign[]
   let page = doc.addPage([PAGE.width, PAGE.height])
   let y = PAGE.height - MARGIN.y
 
-  page.drawText('Campanii', {
+  drawSafe(page, 'Campanii', {
     x: MARGIN.x,
     y: y - 20,
     font: assets.serifBold,
@@ -255,7 +276,7 @@ function drawTable(doc: PDFDocument, assets: Assets, campaigns: ReportCampaign[]
   y -= 50
 
   if (campaigns.length === 0) {
-    page.drawText('Nicio campanie potrivită filtrelor.', {
+    drawSafe(page, 'Nicio campanie potrivita filtrelor.', {
       x: MARGIN.x,
       y,
       font: assets.sans,
@@ -269,7 +290,7 @@ function drawTable(doc: PDFDocument, assets: Assets, campaigns: ReportCampaign[]
     { label: 'Nume', w: 140 },
     { label: 'Brand', w: 90 },
     { label: 'Status', w: 70 },
-    { label: 'Perioadă', w: 110 },
+    { label: 'Perioada', w: 110 },
     { label: '# Part.', w: 50 },
     { label: 'Buget', w: 80 },
   ]
@@ -277,7 +298,7 @@ function drawTable(doc: PDFDocument, assets: Assets, campaigns: ReportCampaign[]
     let cx = MARGIN.x
     target.drawRectangle({ x: MARGIN.x, y: yy - 4, width: CONTENT_WIDTH, height: 22, color: COLORS.rule })
     for (const c of cols) {
-      target.drawText(c.label.toUpperCase(), {
+      drawSafe(target, c.label.toUpperCase(), {
         x: cx + 6,
         y: yy + 4,
         font: assets.sansBold,
@@ -312,7 +333,7 @@ function drawTable(doc: PDFDocument, assets: Assets, campaigns: ReportCampaign[]
     ]
     let cx = MARGIN.x
     for (let i = 0; i < cols.length; i++) {
-      page.drawText(values[i], {
+      drawSafe(page, values[i], {
         x: cx + 6,
         y: y,
         font: assets.sans,

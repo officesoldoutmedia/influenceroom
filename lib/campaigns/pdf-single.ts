@@ -89,6 +89,29 @@ function decodeWordmarkPng(): Uint8Array {
   return bytes
 }
 
+/**
+ * Standard pdf-lib fonts folosesc WinAnsi encoding care nu suporta diacritice
+ * romanesti. Mapam Ă/Â/Î/Ș/Ț (cu variante UTF cedilla vs comma-below) la
+ * litere ASCII pentru a evita crash-ul "WinAnsi cannot encode". Pe textul
+ * vizibil — labels statice si user input — pierderea diacriticelor e
+ * acceptabila pentru un raport intern/client; varianta cu font embedded
+ * (Fraunces/Geist via fontkit) ramane optional in faza ulterioara daca
+ * echipa cere fidelitate stricta.
+ */
+function safeText(s: string | null | undefined): string {
+  if (!s) return ''
+  return s
+    .replace(/ă/g, 'a').replace(/Ă/g, 'A')
+    .replace(/â/g, 'a').replace(/Â/g, 'A')
+    .replace(/î/g, 'i').replace(/Î/g, 'I')
+    .replace(/ș/g, 's').replace(/Ș/g, 'S').replace(/ş/g, 's').replace(/Ş/g, 'S')
+    .replace(/ț/g, 't').replace(/Ț/g, 'T').replace(/ţ/g, 't').replace(/Ţ/g, 'T')
+}
+
+function drawSafe(page: PDFPage, text: string, opts: Parameters<PDFPage['drawText']>[1]): void {
+  page.drawText(safeText(text), opts)
+}
+
 const MONTHS_RO = ['ian', 'feb', 'mar', 'apr', 'mai', 'iun', 'iul', 'aug', 'sep', 'oct', 'noi', 'dec']
 
 function formatDateRo(iso: string | null): string {
@@ -99,22 +122,26 @@ function formatDateRo(iso: string | null): string {
 }
 
 function formatPeriod(start: string | null, end: string | null): string {
-  if (!start) return 'Perioadă nedefinită'
+  if (!start) return 'Perioada nedefinita'
   if (!end) return `din ${formatDateRo(start)}`
   return `${formatDateRo(start)} – ${formatDateRo(end)}`
 }
 
+// Note: in PDF context omitem diacriticele Romanesti din labels, pentru ca
+// pdf-lib Standard fonts folosesc WinAnsi encoding (nu suporta Ă/Â/Î/Ș/Ț).
+// safeText() le-ar normaliza oricum la nivel de drawText, dar tinem aici
+// versiunile fara diacritice pentru claritate la lectura sursei.
 const STATUS_LABELS_RO: Record<string, string> = {
   draft: 'Draft',
-  active: 'Activă',
-  in_review: 'În review',
-  completed: 'Finalizată',
-  cancelled: 'Anulată',
+  active: 'Activa',
+  in_review: 'In review',
+  completed: 'Finalizata',
+  cancelled: 'Anulata',
   invited: 'Invitat',
   confirmed: 'Confirmat',
   declined: 'Refuzat',
-  in_progress: 'În lucru',
-  content_in_review: 'Content în review',
+  in_progress: 'In lucru',
+  content_in_review: 'Content in review',
   approved: 'Aprobat',
   published: 'Publicat',
   sent_to_influencer: 'Trimis influencer',
@@ -145,11 +172,11 @@ const MILESTONE_LABELS: Record<string, string> = {
   brief_sent: 'Brief trimis',
   materials_approved: 'Materiale aprobate',
   content_draft_submitted: 'Draft trimis',
-  final_content_approved: 'Conţinut final aprobat',
+  final_content_approved: 'Continut final aprobat',
   links_submitted: 'Link-uri trimise',
   report_delivered: 'Raport livrat',
-  payment_processed: 'Plată procesată',
-  other: 'Altă etapă',
+  payment_processed: 'Plata procesata',
+  other: 'Alta etapa',
 }
 
 function milestoneTypeLabel(type: string, name: string | null): string {
@@ -162,8 +189,9 @@ function drawTextRight(
   text: string,
   opts: { x: number; y: number; font: PDFFont; size: number; color: ReturnType<typeof rgb>; tracking?: number },
 ): void {
-  const w = opts.font.widthOfTextAtSize(text, opts.size) + (opts.tracking ?? 0) * (text.length - 1)
-  page.drawText(text, {
+  const safe = safeText(text)
+  const w = opts.font.widthOfTextAtSize(safe, opts.size) + (opts.tracking ?? 0) * (safe.length - 1)
+  page.drawText(safe, {
     x: opts.x - w,
     y: opts.y,
     font: opts.font,
@@ -177,8 +205,9 @@ function drawTextCenter(
   text: string,
   opts: { y: number; font: PDFFont; size: number; color: ReturnType<typeof rgb>; tracking?: number },
 ): void {
-  const w = opts.font.widthOfTextAtSize(text, opts.size) + (opts.tracking ?? 0) * (text.length - 1)
-  page.drawText(text, {
+  const safe = safeText(text)
+  const w = opts.font.widthOfTextAtSize(safe, opts.size) + (opts.tracking ?? 0) * (safe.length - 1)
+  page.drawText(safe, {
     x: (PAGE.width - w) / 2,
     y: opts.y,
     font: opts.font,
@@ -188,7 +217,7 @@ function drawTextCenter(
 }
 
 function wrapText(text: string, font: PDFFont, size: number, maxWidth: number): string[] {
-  const words = text.split(/\s+/)
+  const words = safeText(text).split(/\s+/)
   const lines: string[] = []
   let cur = ''
   for (const w of words) {
@@ -325,7 +354,7 @@ function drawCoverPage(doc: PDFDocument, assets: Assets, campaign: CampaignForPd
     height: 22,
     color: COLORS.brand,
   })
-  page.drawText(statusText, {
+  drawSafe(page, statusText, {
     x: statusX + 12,
     y: titleY - 104,
     font: assets.sansBold,
@@ -346,7 +375,7 @@ function drawDetailsPage(doc: PDFDocument, assets: Assets, campaign: CampaignFor
   const page = doc.addPage([PAGE.width, PAGE.height])
   let y = PAGE.height - MARGIN.y
 
-  page.drawText('Detalii', {
+  drawSafe(page, 'Detalii', {
     x: MARGIN.x,
     y: y - 20,
     font: assets.serifBold,
@@ -360,7 +389,7 @@ function drawDetailsPage(doc: PDFDocument, assets: Assets, campaign: CampaignFor
     ['Owner', campaign.owner?.name ?? '—'],
     ['Brand', campaign.brand?.name ?? '—'],
     ['Buget total', campaign.total_budget != null ? formatEur(campaign.total_budget) : '—'],
-    ['Început', formatDateRo(campaign.start_date)],
+    ['Inceput', formatDateRo(campaign.start_date)],
     ['Final', formatDateRo(campaign.end_date)],
     ['Deliverables', String(campaign.deliverables_count ?? '—')],
   ]
@@ -370,14 +399,14 @@ function drawDetailsPage(doc: PDFDocument, assets: Assets, campaign: CampaignFor
     const col = i % 2
     const x = MARGIN.x + col * colW
     if (col === 0 && i > 0) y -= 36
-    page.drawText(label, {
+    drawSafe(page, label, {
       x,
       y: y - 4,
       font: assets.sans,
       size: 9,
       color: COLORS.textFaint,
     })
-    page.drawText(value, {
+    drawSafe(page, value, {
       x,
       y: y - 20,
       font: assets.sansBold,
@@ -387,7 +416,7 @@ function drawDetailsPage(doc: PDFDocument, assets: Assets, campaign: CampaignFor
   }
   y -= 56
 
-  page.drawText('Brief', {
+  drawSafe(page, 'Brief', {
     x: MARGIN.x,
     y: y - 20,
     font: assets.serifBold,
@@ -399,12 +428,12 @@ function drawDetailsPage(doc: PDFDocument, assets: Assets, campaign: CampaignFor
   const briefRaw = (campaign.brief ?? '').trim()
   const brief = briefRaw.length > 3000 ? briefRaw.slice(0, 3000) + '…' : briefRaw
   if (!brief) {
-    page.drawText('—', { x: MARGIN.x, y: y - 12, font: assets.sans, size: 11, color: COLORS.textMuted })
+    drawSafe(page, '—', { x: MARGIN.x, y: y - 12, font: assets.sans, size: 11, color: COLORS.textMuted })
   } else {
     const lines = wrapText(brief, assets.sans, 11, CONTENT_WIDTH)
     for (const line of lines) {
       if (y < MARGIN.y + 40) break
-      page.drawText(line, {
+      drawSafe(page, line, {
         x: MARGIN.x,
         y: y - 12,
         font: assets.sans,
@@ -420,7 +449,7 @@ function drawParticipantsPage(doc: PDFDocument, assets: Assets, participants: Pa
   let page = doc.addPage([PAGE.width, PAGE.height])
   let y = PAGE.height - MARGIN.y
 
-  page.drawText(`Participanţi (${participants.length})`, {
+  drawSafe(page, `Participanti (${participants.length})`, {
     x: MARGIN.x,
     y: y - 20,
     font: assets.serifBold,
@@ -430,13 +459,13 @@ function drawParticipantsPage(doc: PDFDocument, assets: Assets, participants: Pa
   y -= 50
 
   if (participants.length === 0) {
-    page.drawText('Niciun participant.', { x: MARGIN.x, y, font: assets.sans, size: 11, color: COLORS.textMuted })
+    drawSafe(page, 'Niciun participant.', { x: MARGIN.x, y, font: assets.sans, size: 11, color: COLORS.textMuted })
     return
   }
 
   const cols = [
     { label: 'Influencer', w: 150 },
-    { label: 'Platformă', w: 70 },
+    { label: 'Platforma', w: 70 },
     { label: 'Handle', w: 100 },
     { label: 'Status', w: 80 },
     { label: 'Fee (€)', w: 80 },
@@ -445,7 +474,7 @@ function drawParticipantsPage(doc: PDFDocument, assets: Assets, participants: Pa
     let cx = MARGIN.x
     target.drawRectangle({ x: MARGIN.x, y: yy - 4, width: CONTENT_WIDTH, height: 22, color: COLORS.rule })
     for (const c of cols) {
-      target.drawText(c.label.toUpperCase(), {
+      drawSafe(target, c.label.toUpperCase(), {
         x: cx + 6,
         y: yy + 4,
         font: assets.sansBold,
@@ -479,7 +508,7 @@ function drawParticipantsPage(doc: PDFDocument, assets: Assets, participants: Pa
     ]
     let cx = MARGIN.x
     for (let i = 0; i < cols.length; i++) {
-      page.drawText(values[i], {
+      drawSafe(page, values[i], {
         x: cx + 6,
         y: y,
         font: assets.sans,
@@ -512,7 +541,7 @@ function drawDeliverablesPage(
   let page = doc.addPage([PAGE.width, PAGE.height])
   let y = PAGE.height - MARGIN.y
 
-  page.drawText(`Livrabile (${deliverables.length})`, {
+  drawSafe(page, `Livrabile (${deliverables.length})`, {
     x: MARGIN.x,
     y: y - 20,
     font: assets.serifBold,
@@ -522,7 +551,7 @@ function drawDeliverablesPage(
   y -= 50
 
   if (deliverables.length === 0) {
-    page.drawText('Niciun livrabil.', { x: MARGIN.x, y, font: assets.sans, size: 11, color: COLORS.textMuted })
+    drawSafe(page, 'Niciun livrabil.', { x: MARGIN.x, y, font: assets.sans, size: 11, color: COLORS.textMuted })
     return
   }
 
@@ -539,7 +568,7 @@ function drawDeliverablesPage(
     let cx = MARGIN.x
     target.drawRectangle({ x: MARGIN.x, y: yy - 4, width: CONTENT_WIDTH, height: 22, color: COLORS.rule })
     for (const c of cols) {
-      target.drawText(c.label.toUpperCase(), {
+      drawSafe(target, c.label.toUpperCase(), {
         x: cx + 6,
         y: yy + 4,
         font: assets.sansBold,
@@ -572,7 +601,7 @@ function drawDeliverablesPage(
     ]
     let cx = MARGIN.x
     for (let i = 0; i < cols.length; i++) {
-      page.drawText(values[i], {
+      drawSafe(page, values[i], {
         x: cx + 6,
         y: y,
         font: assets.sans,
@@ -590,7 +619,7 @@ function drawMilestonesPage(doc: PDFDocument, assets: Assets, milestones: Milest
   let page = doc.addPage([PAGE.width, PAGE.height])
   let y = PAGE.height - MARGIN.y
 
-  page.drawText(`Etape (${milestones.length})`, {
+  drawSafe(page, `Etape (${milestones.length})`, {
     x: MARGIN.x,
     y: y - 20,
     font: assets.serifBold,
@@ -600,7 +629,7 @@ function drawMilestonesPage(doc: PDFDocument, assets: Assets, milestones: Milest
   y -= 50
 
   if (milestones.length === 0) {
-    page.drawText('Nicio etapă.', { x: MARGIN.x, y, font: assets.sans, size: 11, color: COLORS.textMuted })
+    drawSafe(page, 'Nicio etapa.', { x: MARGIN.x, y, font: assets.sans, size: 11, color: COLORS.textMuted })
     return
   }
 
@@ -621,7 +650,7 @@ function drawMilestonesPage(doc: PDFDocument, assets: Assets, milestones: Milest
     let cx = MARGIN.x
     target.drawRectangle({ x: MARGIN.x, y: yy - 4, width: CONTENT_WIDTH, height: 22, color: COLORS.rule })
     for (const c of cols) {
-      target.drawText(c.label.toUpperCase(), {
+      drawSafe(target, c.label.toUpperCase(), {
         x: cx + 6,
         y: yy + 4,
         font: assets.sansBold,
@@ -656,7 +685,7 @@ function drawMilestonesPage(doc: PDFDocument, assets: Assets, milestones: Milest
     ]
     let cx = MARGIN.x
     for (let i = 0; i < cols.length; i++) {
-      page.drawText(values[i], {
+      drawSafe(page, values[i], {
         x: cx + 6,
         y: y,
         font: assets.sans,
