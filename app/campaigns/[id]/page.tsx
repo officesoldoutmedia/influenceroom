@@ -147,6 +147,7 @@ export default async function CampaignDetailPage({
                   {campaign.brand ? (
                     <Link href={`/brands`} className="text-brand-800 hover:underline">{campaign.brand.name}</Link>
                   ) : '—'}
+                  {campaign.agency_name && <> · Agenție: <span className="text-stone-700">{campaign.agency_name}</span></>}
                   {campaign.owner && <> · Owner: <span className="text-stone-700">{campaign.owner.name}</span></>}
                 </p>
                 <p className="text-xs text-stone-500 mt-1">

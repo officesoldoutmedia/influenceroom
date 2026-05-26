@@ -250,6 +250,7 @@ function EditModal({
   const [brief, setBrief] = useState(campaign.brief ?? '')
   const [ownerId, setOwnerId] = useState(campaign.owner_id ?? '')
   const [internalNotes, setInternalNotes] = useState(campaign.internal_notes ?? '')
+  const [agencyName, setAgencyName] = useState(campaign.agency_name ?? '')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -267,6 +268,7 @@ function EditModal({
       body: JSON.stringify({
         name,
         brand_id: brandId,
+        agency_name: agencyName.trim() || null,
         start_date: startDate || null,
         end_date: endDate || null,
         total_budget: budget === '' ? null : Number(budget),
@@ -287,13 +289,21 @@ function EditModal({
       <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-xl my-8" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-lg font-semibold text-stone-900 mb-4">Edit {campaign.name}</h2>
         <form onSubmit={submit} className="space-y-3">
-          <Field label="Name *">
+          <Field label="Nume campanie *">
             <input value={name} onChange={(e) => setName(e.target.value)} required className={inputCls} />
           </Field>
           <Field label="Brand">
             <select value={brandId} onChange={(e) => setBrandId(e.target.value)} className={inputCls}>
               {brands.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
             </select>
+          </Field>
+          <Field label="Nume agenție">
+            <input
+              value={agencyName}
+              onChange={(e) => setAgencyName(e.target.value)}
+              placeholder="ex: Influence Room"
+              className={inputCls}
+            />
           </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Start date (T+0)">

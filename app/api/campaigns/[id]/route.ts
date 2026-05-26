@@ -69,6 +69,7 @@ type PatchBody = {
   internal_notes?: string | null
   owner_id?: string | null
   brand_id?: string
+  agency_name?: string | null
 }
 
 export async function PATCH(
@@ -104,6 +105,7 @@ export async function PATCH(
   if (body.total_budget !== undefined) update.total_budget = body.total_budget
   if (body.deliverables_count !== undefined) update.deliverables_count = body.deliverables_count
   if (body.internal_notes !== undefined) update.internal_notes = body.internal_notes?.toString().trim() || null
+  if (body.agency_name !== undefined) update.agency_name = body.agency_name?.toString().trim() || null
   if (body.owner_id !== undefined) update.owner_id = body.owner_id || null
   if (body.brand_id !== undefined) update.brand_id = body.brand_id
 

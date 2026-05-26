@@ -48,6 +48,11 @@ type CreateBody = {
   brief?: string | null
   owner_id?: string | null
   internal_notes?: string | null
+  agency_name?: string | null
+  /** Influencer principal (optional): la submit creez auto un campaign_participant
+   * cu acest influencer + platform default. Userul poate adauga si alti participanti
+   * in tab Participanti. */
+  primary_influencer_id?: string | null
 }
 
 type FieldError = { field: string; code: string }
@@ -103,18 +108,43 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'server_error', detail: error.message }, { status: 500 })
   }
 
-  if (body.status === 'active' && data?.id) {
-    const { error: updErr } = await supabase
-      .from('campaigns')
-      .update({ status: 'active' })
-      .eq('id', data.id)
-    if (updErr) {
-      return NextResponse.json(
-        { ok: false, error: 'server_error', detail: updErr.message },
-        { status: 500 },
-      )
+  // Aplicăm agency_name + status într-un singur update după create_campaign RPC
+  // (RPC-ul nu acceptă încă agency_name).
+  if (data?.id) {
+    const update: Record<string, unknown> = {}
+    if (body.agency_name !== undefined) {
+      update.agency_name = body.agency_name?.toString().trim() || null
     }
-    data.status = 'active'
+    if (body.status === 'active') update.status = 'active'
+    if (Object.keys(update).length > 0) {
+      const { error: updErr } = await supabase
+        .from('campaigns')
+        .update(update)
+        .eq('id', data.id)
+      if (updErr) {
+        return NextResponse.json(
+          { ok: false, error: 'server_error', detail: updErr.message },
+          { status: 500 },
+        )
+      }
+      if (update.status) data.status = 'active'
+      if ('agency_name' in update) data.agency_name = update.agency_name
+    }
+  }
+
+  // Auto-create primary participant dacă a fost selectat (best-effort,
+  // nu blochează response-ul dacă eșuează — campania e creată oricum).
+  if (body.primary_influencer_id && data?.id) {
+    const { error: partErr } = await supabase.from('campaign_participants').insert({
+      campaign_id: data.id,
+      influencer_id: body.primary_influencer_id,
+      platform: 'instagram',
+      is_adhoc: false,
+      added_by: createdBy,
+    })
+    if (partErr) {
+      console.error('[campaign create primary participant]', partErr)
+    }
   }
 
   return NextResponse.json({ ok: true, campaign: data })

@@ -348,6 +348,7 @@ export function CampaignsUI({
         <NewCampaignModal
           brands={brands}
           members={members}
+          influencers={influencers}
           currentUserId={currentUserId}
           role={role}
           onClose={() => setShowNew(false)}
@@ -496,15 +497,17 @@ function FilterBar({
         </select>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-        <select
-          value={influencer}
-          onChange={(e) => { setInfluencer(e.target.value); onApply({ influencer: e.target.value || null }) }}
-          className={inputCls}
-        >
-          <option value="">Toți influencerii</option>
-          {influencers.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
-        </select>
+      <div>
+        <Combobox
+          items={influencers.map((i): ComboboxItem => ({ id: i.id, label: i.name }))}
+          value={influencer || null}
+          onChange={(id) => {
+            setInfluencer(id ?? '')
+            onApply({ influencer: id })
+          }}
+          placeholder="Caută influencer..."
+          emptyLabel="Niciun influencer."
+        />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -602,6 +605,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 function NewCampaignModal({
   brands,
   members,
+  influencers,
   currentUserId,
   role,
   onClose,
@@ -609,6 +613,7 @@ function NewCampaignModal({
 }: {
   brands: SimpleBrand[]
   members: SimpleMember[]
+  influencers: SimpleInfluencer[]
   currentUserId: string
   role: Role
   onClose: () => void
@@ -617,6 +622,8 @@ function NewCampaignModal({
   const [brandId, setBrandId] = useState<string | null>(null)
   const [brandList, setBrandList] = useState<SimpleBrand[]>(brands)
   const [name, setName] = useState('')
+  const [agencyName, setAgencyName] = useState('')
+  const [primaryInfluencerId, setPrimaryInfluencerId] = useState<string | null>(null)
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [budget, setBudget] = useState('')
@@ -668,6 +675,8 @@ function NewCampaignModal({
         brand_id: brandId,
         name,
         status: mode,
+        agency_name: agencyName.trim() || null,
+        primary_influencer_id: primaryInfluencerId,
         start_date: startDate || null,
         end_date: endDate || null,
         total_budget: budget === '' ? null : Number(budget),
@@ -718,8 +727,29 @@ function NewCampaignModal({
             }
             createLabel={(q) => <>+ Crează brand nou: <strong>{q}</strong></>}
           />
-          <Field label="Nume *">
+          <Field label="Nume campanie *">
             <input value={name} onChange={(e) => setName(e.target.value)} required className={inputCls} />
+          </Field>
+          <Field label="Nume agenție">
+            <input
+              value={agencyName}
+              onChange={(e) => setAgencyName(e.target.value)}
+              placeholder="ex: Influence Room"
+              className={inputCls}
+            />
+          </Field>
+          <Field label="Influencer principal">
+            <Combobox
+              items={influencers.map((i): ComboboxItem => ({ id: i.id, label: i.name }))}
+              value={primaryInfluencerId}
+              onChange={setPrimaryInfluencerId}
+              placeholder="Caută influencer (opțional)..."
+              emptyLabel="Niciun influencer."
+            />
+            <p className="text-xs text-stone-500 mt-1">
+              Se adaugă automat ca participant Instagram. Pentru alți participanți / platforme,
+              folosește tab-ul „Participanți” după creare.
+            </p>
           </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Start (T+0)">

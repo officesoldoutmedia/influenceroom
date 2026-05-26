@@ -11,6 +11,7 @@ export type Campaign = {
   id: string
   brand_id: string
   name: string
+  agency_name: string | null
   brief: string | null
   status: CampaignStatus
   start_date: string | null
