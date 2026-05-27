@@ -33,6 +33,67 @@ function TrashIcon({ className }: { className?: string }) {
   )
 }
 
+const MONTH_LABELS_RO = [
+  'Ianuarie', 'Februarie', 'Martie', 'Aprilie', 'Mai', 'Iunie',
+  'Iulie', 'August', 'Septembrie', 'Octombrie', 'Noiembrie', 'Decembrie',
+]
+
+/**
+ * Inlocuieste <input type="month"> care nu are picker UI pe Safari macOS.
+ * Valoare = string YYYY-MM (consistent cu input nativ); emite "" cand cel
+ * putin unul din selecte e gol.
+ */
+function MonthSelect({
+  value,
+  onChange,
+  ariaLabel,
+  placeholder,
+}: {
+  value: string
+  onChange: (next: string) => void
+  ariaLabel: string
+  placeholder: string
+}) {
+  const [yearStr, monthStr] = value ? value.split('-') : ['', '']
+  const currentYear = new Date().getFullYear()
+  // Range an: -3 din anul curent (campanii vechi) → +2 (planificare).
+  const years: number[] = []
+  for (let y = currentYear - 3; y <= currentYear + 2; y++) years.push(y)
+
+  function emit(nextMonth: string, nextYear: string) {
+    if (nextMonth && nextYear) onChange(`${nextYear}-${nextMonth.padStart(2, '0')}`)
+    else onChange('')
+  }
+
+  const selectCls =
+    'px-2 py-2.5 border border-stone-300 rounded-md text-sm bg-white focus:outline-none focus:border-brand-700 focus:ring-2 focus:ring-brand-500/20'
+
+  return (
+    <div className="flex gap-1" aria-label={ariaLabel}>
+      <select
+        value={monthStr}
+        onChange={(e) => emit(e.target.value, yearStr)}
+        className={`${selectCls} flex-1`}
+      >
+        <option value="">{placeholder}</option>
+        {MONTH_LABELS_RO.map((label, i) => (
+          <option key={i} value={String(i + 1)}>{label}</option>
+        ))}
+      </select>
+      <select
+        value={yearStr}
+        onChange={(e) => emit(monthStr, e.target.value)}
+        className={`${selectCls} w-24`}
+      >
+        <option value="">An</option>
+        {years.map((y) => (
+          <option key={y} value={String(y)}>{y}</option>
+        ))}
+      </select>
+    </div>
+  )
+}
+
 function ParticipantsSummary({
   participants,
 }: {
@@ -60,6 +121,7 @@ const STATUS_LABEL: Record<CampaignStatus, string> = {
   active: 'active',
   in_review: 'în review',
   completed: 'finalizat',
+  invoiced: 'facturat',
   cancelled: 'anulat',
 }
 
@@ -74,6 +136,7 @@ const STATUS_BADGE: Record<CampaignStatus, string> = {
   active: 'bg-emerald-100 text-emerald-700',
   in_review: 'bg-amber-100 text-amber-800',
   completed: 'bg-blue-100 text-blue-700',
+  invoiced: 'bg-violet-100 text-violet-700',
   cancelled: 'bg-rose-100 text-rose-700',
 }
 
@@ -410,13 +473,6 @@ function FilterBar({
   const [monthFrom, setMonthFrom] = useState<string>(filters.monthFrom ?? '')
   const [monthTo, setMonthTo] = useState<string>(filters.monthTo ?? '')
 
-  function commitMonths() {
-    onApply({
-      monthFrom: monthFrom || null,
-      monthTo: monthTo || null,
-    })
-  }
-
   useEffect(() => {
     const t = setTimeout(() => {
       if ((q || null) !== filters.q) onApply({ q: q || null })
@@ -425,10 +481,23 @@ function FilterBar({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q])
 
+  // Sync local state cu filters prop când URL se schimbă (back/forward
+  // browser, reset filtru programatic etc.) — altfel chips-urile UI raman
+  // out-of-sync cu URL-ul real.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setStatuses(filters.statuses)
+  }, [filters.statuses])
+
   function toggleStatus(s: CampaignStatus) {
-    const next = statuses.includes(s) ? statuses.filter((x) => x !== s) : [...statuses, s]
-    setStatuses(next)
-    onApply({ statuses: next })
+    // Functional setter ca să evităm stale closure când userul face click
+    // rapid pe 2 statuses consecutiv (al doilea click vedea statuses="[]"
+    // din pasul 1 înainte de re-render → pierdea primul status).
+    setStatuses((prev) => {
+      const next = prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]
+      onApply({ statuses: next })
+      return next
+    })
   }
 
   function reset() {
@@ -511,23 +580,23 @@ function FilterBar({
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-        <input
-          type="month"
+        <MonthSelect
           value={monthFrom}
-          onChange={(e) => setMonthFrom(e.target.value)}
-          onBlur={commitMonths}
+          onChange={(next) => {
+            setMonthFrom(next)
+            onApply({ monthFrom: next || null, monthTo: monthTo || null })
+          }}
+          ariaLabel="De la luna"
           placeholder="De la luna"
-          aria-label="De la luna"
-          className={inputCls}
         />
-        <input
-          type="month"
+        <MonthSelect
           value={monthTo}
-          onChange={(e) => setMonthTo(e.target.value)}
-          onBlur={commitMonths}
+          onChange={(next) => {
+            setMonthTo(next)
+            onApply({ monthFrom: monthFrom || null, monthTo: next || null })
+          }}
+          ariaLabel="Până la luna"
           placeholder="Până la luna"
-          aria-label="Până la luna"
-          className={inputCls}
         />
       </div>
 

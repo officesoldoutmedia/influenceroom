@@ -29,6 +29,7 @@ const STATUS_BADGE: Record<CampaignStatus, string> = {
   active: 'bg-emerald-100 text-emerald-700',
   in_review: 'bg-amber-100 text-amber-800',
   completed: 'bg-blue-100 text-blue-700',
+  invoiced: 'bg-violet-100 text-violet-700',
   cancelled: 'bg-rose-100 text-rose-700',
 }
 

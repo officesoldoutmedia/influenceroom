@@ -1,4 +1,4 @@
-export const CAMPAIGN_STATUSES = ['draft', 'active', 'in_review', 'completed', 'cancelled'] as const
+export const CAMPAIGN_STATUSES = ['draft', 'active', 'in_review', 'completed', 'invoiced', 'cancelled'] as const
 export type CampaignStatus = (typeof CAMPAIGN_STATUSES)[number]
 
 export const TASK_STATUSES = ['todo', 'in_progress', 'blocked', 'review', 'done'] as const

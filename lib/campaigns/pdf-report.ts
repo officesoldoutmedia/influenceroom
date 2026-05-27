@@ -125,6 +125,7 @@ const STATUS_LABELS_RO: Record<string, string> = {
   active: 'Activa',
   in_review: 'In review',
   completed: 'Finalizata',
+  invoiced: 'Facturat',
   cancelled: 'Anulata',
 }
 function statusLabel(s: string): string {

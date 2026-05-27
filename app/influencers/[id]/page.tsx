@@ -568,6 +568,7 @@ const STATUS_LABEL_RO: Record<string, string> = {
   active: 'Activă',
   in_review: 'În review',
   completed: 'Finalizată',
+  invoiced: 'Facturat',
   cancelled: 'Anulată',
 }
 
