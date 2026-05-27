@@ -104,7 +104,7 @@ export function CampaignReportsTab({
     <div className="space-y-4">
       {participants.map((p) => {
         const reports = grouped.get(p.id) ?? []
-        const label = `${p.influencer?.name ?? (p.is_adhoc ? 'Ad-hoc' : '—')} · ${p.platform}`
+        const label = `${p.influencer?.name ?? (p.is_adhoc ? 'Extern' : '—')} · ${p.platform}`
         return (
           <div key={p.id} className="bg-white border border-stone-200 rounded-xl p-4">
             <div className="flex items-center justify-between mb-3">
@@ -149,7 +149,7 @@ export function CampaignReportsTab({
       {uploadFor && (
         <ReportUploadModal
           participantId={uploadFor.id}
-          participantLabel={`${uploadFor.influencer?.name ?? (uploadFor.is_adhoc ? 'Ad-hoc' : '—')} · ${uploadFor.platform}`}
+          participantLabel={`${uploadFor.influencer?.name ?? (uploadFor.is_adhoc ? 'Extern' : '—')} · ${uploadFor.platform}`}
           onClose={() => setUploadFor(null)}
           onUploaded={() => reload()}
         />

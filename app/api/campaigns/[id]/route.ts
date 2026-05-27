@@ -70,6 +70,13 @@ type PatchBody = {
   owner_id?: string | null
   brand_id?: string
   agency_name?: string | null
+  rebate_agency_name?: string | null
+  rebate_type?: 'percent' | 'fixed' | null
+  rebate_value?: number | null
+  rebate_currency?: string | null
+  rebate_status?: 'estimated' | 'confirmed' | 'paid' | null
+  rebate_notes?: string | null
+  rebate_applies_to_budget?: boolean
 }
 
 export async function PATCH(
@@ -106,6 +113,28 @@ export async function PATCH(
   if (body.deliverables_count !== undefined) update.deliverables_count = body.deliverables_count
   if (body.internal_notes !== undefined) update.internal_notes = body.internal_notes?.toString().trim() || null
   if (body.agency_name !== undefined) update.agency_name = body.agency_name?.toString().trim() || null
+  if (body.rebate_agency_name !== undefined) update.rebate_agency_name = body.rebate_agency_name?.toString().trim() || null
+  if (body.rebate_type !== undefined) {
+    if (body.rebate_type !== null && body.rebate_type !== 'percent' && body.rebate_type !== 'fixed') {
+      return NextResponse.json({ ok: false, error: 'invalid_rebate_type' }, { status: 400 })
+    }
+    update.rebate_type = body.rebate_type
+  }
+  if (body.rebate_value !== undefined) {
+    if (body.rebate_value !== null && (typeof body.rebate_value !== 'number' || !Number.isFinite(body.rebate_value) || body.rebate_value < 0)) {
+      return NextResponse.json({ ok: false, error: 'invalid_rebate_value' }, { status: 400 })
+    }
+    update.rebate_value = body.rebate_value
+  }
+  if (body.rebate_currency !== undefined) update.rebate_currency = body.rebate_currency?.toString().trim() || null
+  if (body.rebate_status !== undefined) {
+    if (body.rebate_status !== null && !['estimated', 'confirmed', 'paid'].includes(body.rebate_status)) {
+      return NextResponse.json({ ok: false, error: 'invalid_rebate_status' }, { status: 400 })
+    }
+    update.rebate_status = body.rebate_status
+  }
+  if (body.rebate_notes !== undefined) update.rebate_notes = body.rebate_notes?.toString().trim() || null
+  if (body.rebate_applies_to_budget !== undefined) update.rebate_applies_to_budget = !!body.rebate_applies_to_budget
   if (body.owner_id !== undefined) update.owner_id = body.owner_id || null
   if (body.brand_id !== undefined) update.brand_id = body.brand_id
 

@@ -42,10 +42,10 @@ function ParticipantsSummary({
     return <span className="text-stone-400 italic">—</span>
   }
   const first = participants[0]
-  const firstName = first.influencer_name ?? (first.is_adhoc ? 'Ad-hoc' : '—')
+  const firstName = first.influencer_name ?? (first.is_adhoc ? 'Extern' : '—')
   const overflow = participants.length - 1
   const fullList = participants
-    .map((p) => p.influencer_name ?? (p.is_adhoc ? 'Ad-hoc' : '—'))
+    .map((p) => p.influencer_name ?? (p.is_adhoc ? 'Extern' : '—'))
     .join(', ')
   return (
     <span title={fullList} className="truncate">

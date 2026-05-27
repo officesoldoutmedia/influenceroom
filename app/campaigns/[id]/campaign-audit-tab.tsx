@@ -121,7 +121,7 @@ export function CampaignAuditTab({ campaignId }: { campaignId: string }) {
                 </td>
                 <td className="px-4 py-3 text-stone-600">
                   {e.cost_type === 'agreed_fee' && participant
-                    ? `${influencer?.name ?? 'Ad-hoc'} (${participant.platform})`
+                    ? `${influencer?.name ?? 'Extern'} (${participant.platform})`
                     : '—'}
                 </td>
                 <td className="px-4 py-3 text-stone-600 text-right tabular-nums">{formatAmount(e.amount_before)}</td>

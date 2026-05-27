@@ -7,6 +7,12 @@ export type TaskStatus = (typeof TASK_STATUSES)[number]
 export const TASK_PRIORITIES = ['low', 'normal', 'high', 'urgent'] as const
 export type TaskPriority = (typeof TASK_PRIORITIES)[number]
 
+export const REBATE_TYPES = ['percent', 'fixed'] as const
+export type RebateType = (typeof REBATE_TYPES)[number]
+
+export const REBATE_STATUSES = ['estimated', 'confirmed', 'paid'] as const
+export type RebateStatus = (typeof REBATE_STATUSES)[number]
+
 export type Campaign = {
   id: string
   brand_id: string
@@ -20,6 +26,13 @@ export type Campaign = {
   deliverables_count: number | null
   internal_notes: string | null
   owner_id: string | null
+  rebate_agency_name: string | null
+  rebate_type: RebateType | null
+  rebate_value: number | null
+  rebate_currency: string | null
+  rebate_status: RebateStatus | null
+  rebate_notes: string | null
+  rebate_applies_to_budget: boolean
   created_at: string
   updated_at: string
 }

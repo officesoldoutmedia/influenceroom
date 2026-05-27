@@ -251,6 +251,20 @@ function EditModal({
   const [ownerId, setOwnerId] = useState(campaign.owner_id ?? '')
   const [internalNotes, setInternalNotes] = useState(campaign.internal_notes ?? '')
   const [agencyName, setAgencyName] = useState(campaign.agency_name ?? '')
+  // External rebate state (toate optionale; rebate-ul e o sectiune separata)
+  const [rebateAgency, setRebateAgency] = useState(campaign.rebate_agency_name ?? '')
+  const [rebateType, setRebateType] = useState<'' | 'percent' | 'fixed'>(campaign.rebate_type ?? '')
+  const [rebateValue, setRebateValue] = useState(
+    campaign.rebate_value == null ? '' : String(campaign.rebate_value),
+  )
+  const [rebateCurrency, setRebateCurrency] = useState(campaign.rebate_currency ?? 'EUR')
+  const [rebateStatus, setRebateStatus] = useState<'' | 'estimated' | 'confirmed' | 'paid'>(
+    campaign.rebate_status ?? '',
+  )
+  const [rebateNotes, setRebateNotes] = useState(campaign.rebate_notes ?? '')
+  const [rebateAppliesToBudget, setRebateAppliesToBudget] = useState(
+    campaign.rebate_applies_to_budget,
+  )
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -276,6 +290,13 @@ function EditModal({
         brief: brief || null,
         owner_id: ownerId || null,
         internal_notes: internalNotes || null,
+        rebate_agency_name: rebateAgency.trim() || null,
+        rebate_type: rebateType === '' ? null : rebateType,
+        rebate_value: rebateValue === '' ? null : Number(rebateValue),
+        rebate_currency: rebateCurrency.trim() || null,
+        rebate_status: rebateStatus === '' ? null : rebateStatus,
+        rebate_notes: rebateNotes.trim() || null,
+        rebate_applies_to_budget: rebateAppliesToBudget,
       }),
     })
     const data = (await res.json().catch(() => ({}))) as ApiResp
@@ -333,6 +354,84 @@ function EditModal({
           <Field label="Internal notes">
             <textarea value={internalNotes} onChange={(e) => setInternalNotes(e.target.value)} className={textareaCls} />
           </Field>
+
+          {/* External Rebate section — opțional, NU afectează bugetul decât cu opt-in */}
+          <details className="border border-stone-200 rounded-lg p-3 bg-stone-50/40">
+            <summary className="cursor-pointer text-sm font-medium text-stone-700">
+              Rebate extern (opțional)
+            </summary>
+            <div className="space-y-3 mt-3">
+              <Field label="Agenția care a adus campania">
+                <input
+                  value={rebateAgency}
+                  onChange={(e) => setRebateAgency(e.target.value)}
+                  placeholder="ex: ABC Agency"
+                  className={inputCls}
+                />
+              </Field>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Tip rebate">
+                  <select
+                    value={rebateType}
+                    onChange={(e) => setRebateType(e.target.value as '' | 'percent' | 'fixed')}
+                    className={inputCls}
+                  >
+                    <option value="">— alege —</option>
+                    <option value="percent">Procent (%)</option>
+                    <option value="fixed">Sumă fixă</option>
+                  </select>
+                </Field>
+                <Field label="Valoare">
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={rebateValue}
+                    onChange={(e) => setRebateValue(e.target.value)}
+                    className={inputCls}
+                  />
+                </Field>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Monedă">
+                  <input
+                    value={rebateCurrency}
+                    onChange={(e) => setRebateCurrency(e.target.value)}
+                    placeholder="EUR"
+                    className={inputCls}
+                  />
+                </Field>
+                <Field label="Status">
+                  <select
+                    value={rebateStatus}
+                    onChange={(e) => setRebateStatus(e.target.value as '' | 'estimated' | 'confirmed' | 'paid')}
+                    className={inputCls}
+                  >
+                    <option value="">— alege —</option>
+                    <option value="estimated">Estimat</option>
+                    <option value="confirmed">Confirmat</option>
+                    <option value="paid">Plătit</option>
+                  </select>
+                </Field>
+              </div>
+              <Field label="Observații">
+                <textarea
+                  value={rebateNotes}
+                  onChange={(e) => setRebateNotes(e.target.value)}
+                  className={textareaCls}
+                />
+              </Field>
+              <label className="flex items-center gap-2 text-sm text-stone-700">
+                <input
+                  type="checkbox"
+                  checked={rebateAppliesToBudget}
+                  onChange={(e) => setRebateAppliesToBudget(e.target.checked)}
+                />
+                Rebate-ul afectează bugetul campaniei
+              </label>
+            </div>
+          </details>
+
           {error && <p className="text-sm text-rose-600">{error}</p>}
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg bg-stone-100 text-stone-700 text-sm hover:bg-stone-200">Cancel</button>

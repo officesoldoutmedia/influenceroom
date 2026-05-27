@@ -113,7 +113,7 @@ export function ParticipantsUI({
           title="Niciun participant încă"
           description={
             canEdit
-              ? 'Adaugă primul influencer (sau handle ad-hoc) pe campania asta.'
+              ? 'Adaugă primul influencer pe campania asta (existent sau extern).'
               : 'Niciun rând adăugat de către owner.'
           }
           action={
@@ -132,7 +132,7 @@ export function ParticipantsUI({
                 <Avatar name={g.label} size="sm" />
                 <span className="font-medium text-stone-900">{g.label}</span>
                 {g.rows[0].is_adhoc && (
-                  <span className="text-[10px] uppercase tracking-[0.06em] text-stone-500">ad-hoc</span>
+                  <span className="text-[10px] uppercase tracking-[0.06em] text-stone-500">extern</span>
                 )}
               </div>
               <ul className="divide-y divide-stone-100">
@@ -214,7 +214,7 @@ function AddModal({
   onClose: () => void
   onAdded: (items: CampaignParticipantJoined[]) => void
 }) {
-  const [tab, setTab] = useState<'existing' | 'adhoc'>('existing')
+  const [tab, setTab] = useState<'existing' | 'external'>('existing')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -225,10 +225,18 @@ function AddModal({
   const [feeByPlatform, setFeeByPlatform] = useState<Record<string, string>>({})
   const [handleByPlatform, setHandleByPlatform] = useState<Record<string, string>>({})
 
-  // Ad-hoc flow
-  const [adhocPlatform, setAdhocPlatform] = useState<SocialPlatform>('instagram')
-  const [adhocHandle, setAdhocHandle] = useState('')
-  const [adhocFee, setAdhocFee] = useState('')
+  // External influencer flow — full mini-create form. Salveaza in influencers
+  // DB + leaga ca participant pe campanie. Inlocuieste vechiul ad-hoc flow
+  // (care lasa influencer_id NULL si is_adhoc=true). Participantii vechi
+  // ad-hoc raman in DB ca artefacte istorice.
+  const [extName, setExtName] = useState('')
+  const [extPlatform, setExtPlatform] = useState<SocialPlatform>('instagram')
+  const [extHandleIg, setExtHandleIg] = useState('')
+  const [extHandleTt, setExtHandleTt] = useState('')
+  const [extEmail, setExtEmail] = useState('')
+  const [extPhone, setExtPhone] = useState('')
+  const [extNotes, setExtNotes] = useState('')
+  const [extFee, setExtFee] = useState('')
 
   // Auto-fill handle from influencer profile when platform is picked.
   useEffect(() => {
@@ -302,32 +310,76 @@ function AddModal({
     }
   }
 
-  async function submitAdhoc() {
-    const handle = adhocHandle.trim()
-    if (!handle) {
-      setError('Handle obligatoriu')
+  async function submitExternal() {
+    const name = extName.trim()
+    if (!name) {
+      setError('Numele complet e obligatoriu')
+      return
+    }
+    const handleIg = extHandleIg.trim()
+    const handleTt = extHandleTt.trim()
+    // Handle pentru platforma participare (cea selectata) e obligatoriu
+    const participatingHandle = extPlatform === 'instagram' ? handleIg
+      : extPlatform === 'tiktok' ? handleTt
+      : ''
+    if (!participatingHandle && extPlatform !== 'youtube' && extPlatform !== 'facebook') {
+      setError(`Handle ${extPlatform} obligatoriu pentru participare`)
       return
     }
     setBusy(true)
     setError(null)
-    const res = await fetch(`/api/campaigns/${campaignId}/participants`, {
+
+    // 1. Create influencer in DB (auto-tier va seta tier; social_handles
+    // populeaza ce a completat userul).
+    const social_handles: Record<string, { handle: string; url?: string }> = {}
+    if (handleIg) social_handles.instagram = { handle: handleIg }
+    if (handleTt) social_handles.tiktok = { handle: handleTt }
+
+    const infRes = await fetch('/api/influencers', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        influencer_id: null,
-        platform: adhocPlatform,
-        account_handle: handle,
-        agreed_fee: adhocFee === '' ? null : Number(adhocFee),
+        name,
+        social_handles: Object.keys(social_handles).length > 0 ? social_handles : undefined,
+        contact_email: extEmail.trim() || null,
+        contact_phone: extPhone.trim() || null,
+        notes: extNotes.trim() || null,
       }),
     })
-    const data = (await res.json().catch(() => ({}))) as {
+    const infData = (await infRes.json().catch(() => ({}))) as {
+      ok?: boolean
+      error?: string
+      influencer?: { id: string }
+    }
+    if (!infRes.ok || !infData.influencer?.id) {
+      setBusy(false)
+      setError(`Creare influencer eșuată: ${infData.error ?? 'server_error'}`)
+      return
+    }
+
+    // 2. Adauga ca participant pe campanie
+    const handleForPart = participatingHandle || handleIg || handleTt || name
+    const partRes = await fetch(`/api/campaigns/${campaignId}/participants`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        influencer_id: infData.influencer.id,
+        platform: extPlatform,
+        account_handle: handleForPart,
+        agreed_fee: extFee === '' ? null : Number(extFee),
+      }),
+    })
+    const partData = (await partRes.json().catch(() => ({}))) as {
       ok?: boolean
       error?: string
       item?: CampaignParticipantJoined
     }
     setBusy(false)
-    if (res.ok && data.item) onAdded([data.item])
-    else setError(data.error ?? 'server_error')
+    if (partRes.ok && partData.item) {
+      onAdded([partData.item])
+    } else {
+      setError(`Influencer creat dar adăugare participant eșuată: ${partData.error ?? 'server_error'}`)
+    }
   }
 
   return (
@@ -347,8 +399,8 @@ function AddModal({
           <TabButton active={tab === 'existing'} onClick={() => setTab('existing')}>
             Influencer existent
           </TabButton>
-          <TabButton active={tab === 'adhoc'} onClick={() => setTab('adhoc')}>
-            Handle ad-hoc
+          <TabButton active={tab === 'external'} onClick={() => setTab('external')}>
+            Influencer extern
           </TabButton>
         </div>
 
@@ -442,11 +494,56 @@ function AddModal({
           </div>
         ) : (
           <div className="space-y-4">
+            <Field label="Nume complet *">
+              <input
+                value={extName}
+                onChange={(e) => setExtName(e.target.value)}
+                placeholder="ex: Maria Popescu"
+                className={inputCls}
+              />
+            </Field>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Platformă">
+              <Field label="Handle Instagram">
+                <input
+                  value={extHandleIg}
+                  onChange={(e) => setExtHandleIg(e.target.value)}
+                  placeholder="@handle"
+                  className={inputCls}
+                />
+              </Field>
+              <Field label="Handle TikTok">
+                <input
+                  value={extHandleTt}
+                  onChange={(e) => setExtHandleTt(e.target.value)}
+                  placeholder="@handle"
+                  className={inputCls}
+                />
+              </Field>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Email">
+                <input
+                  type="email"
+                  value={extEmail}
+                  onChange={(e) => setExtEmail(e.target.value)}
+                  placeholder="contact@example.com"
+                  className={inputCls}
+                />
+              </Field>
+              <Field label="Telefon">
+                <input
+                  value={extPhone}
+                  onChange={(e) => setExtPhone(e.target.value)}
+                  placeholder="+40 7XX XXX XXX"
+                  className={inputCls}
+                />
+              </Field>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Platformă (participare) *">
                 <select
-                  value={adhocPlatform}
-                  onChange={(e) => setAdhocPlatform(e.target.value as SocialPlatform)}
+                  value={extPlatform}
+                  onChange={(e) => setExtPlatform(e.target.value as SocialPlatform)}
                   className={inputCls}
                 >
                   {SOCIAL_PLATFORMS.map((p) => (
@@ -458,27 +555,28 @@ function AddModal({
                 <input
                   type="number"
                   min={0}
-                  value={adhocFee}
-                  onChange={(e) => setAdhocFee(e.target.value)}
+                  value={extFee}
+                  onChange={(e) => setExtFee(e.target.value)}
                   className={inputCls}
                 />
               </Field>
             </div>
-            <Field label="Handle">
-              <input
-                value={adhocHandle}
-                onChange={(e) => setAdhocHandle(e.target.value)}
-                placeholder="@handle"
-                className={inputCls}
+            <Field label="Note">
+              <textarea
+                value={extNotes}
+                onChange={(e) => setExtNotes(e.target.value)}
+                placeholder="Observații..."
+                className={`${inputCls} min-h-[60px]`}
               />
             </Field>
             <p className="text-[12px] text-stone-500">
-              Handle-ul nu va fi adăugat în baza de influenceri — doar pe campania asta.
+              Influencerul se salvează automat în baza de date Influencers și
+              poate fi găsit la căutări ulterioare.
             </p>
             {error && <p className="text-sm text-rose-600">{ErrorMap(error)}</p>}
             <div className="flex justify-end gap-2 pt-2 border-t border-stone-100">
               <Button type="button" variant="secondary" onClick={onClose}>Anulează</Button>
-              <Button type="button" variant="primary" loading={busy} onClick={submitAdhoc}>
+              <Button type="button" variant="primary" loading={busy} onClick={submitExternal}>
                 Adaugă
               </Button>
             </div>

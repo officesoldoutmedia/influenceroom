@@ -150,6 +150,16 @@ export default async function CampaignDetailPage({
                   {campaign.agency_name && <> · Agenție: <span className="text-stone-700">{campaign.agency_name}</span></>}
                   {campaign.owner && <> · Owner: <span className="text-stone-700">{campaign.owner.name}</span></>}
                 </p>
+                {campaign.rebate_value != null && campaign.rebate_type && (
+                  <p className="text-xs text-stone-500 mt-1">
+                    Rebate {campaign.rebate_status === 'paid' ? '(plătit)' : campaign.rebate_status === 'confirmed' ? '(confirmat)' : '(estimat)'}:{' '}
+                    {campaign.rebate_type === 'percent'
+                      ? `${campaign.rebate_value}%`
+                      : `${campaign.rebate_value} ${campaign.rebate_currency ?? ''}`}
+                    {campaign.rebate_agency_name && <> · prin {campaign.rebate_agency_name}</>}
+                    {campaign.rebate_applies_to_budget && <> · afectează bugetul</>}
+                  </p>
+                )}
                 <p className="text-xs text-stone-500 mt-1">
                   {campaign.start_date ?? '?'} → {campaign.end_date ?? '?'}
                   {campaign.deliverables_count != null && ` · ${campaign.deliverables_count} deliverables`}

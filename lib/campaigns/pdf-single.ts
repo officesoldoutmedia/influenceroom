@@ -522,7 +522,7 @@ function drawParticipantsPage(doc: PDFDocument, assets: Assets, participants: Pa
       page.drawRectangle({ x: MARGIN.x, y: y - 4, width: CONTENT_WIDTH, height: 18, color: COLORS.rowAlt })
     }
     const rawValues = [
-      p.influencer?.name ?? (p.is_adhoc ? 'Ad-hoc' : '—'),
+      p.influencer?.name ?? (p.is_adhoc ? 'Extern' : '—'),
       p.platform,
       p.account_handle ?? '—',
       statusLabel(p.status),
@@ -578,7 +578,7 @@ function drawDeliverablesPage(
     return
   }
 
-  const participantMap = new Map(participants.map((p) => [p.id, p.influencer?.name ?? 'Ad-hoc']))
+  const participantMap = new Map(participants.map((p) => [p.id, p.influencer?.name ?? 'Extern']))
 
   const cols = [
     { label: 'Influencer', w: 130 },
