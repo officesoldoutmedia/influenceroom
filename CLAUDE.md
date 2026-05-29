@@ -333,6 +333,26 @@ mean lexical order matches chronological order.
   Supabase JWT per request and switching server clients to anon key —
   significant rewrite. Existing "authenticated read all" RLS policies stay
   as defense-in-depth + intent documentation.
+- **New `public` tables must GRANT to `service_role`** (Supabase Data API
+  default change, changelog discussion #45329). Supabase is removing the
+  automatic privilege grant on newly-created `public` tables for `anon` /
+  `authenticated` / `service_role`: new projects from **2026-05-30**,
+  enforced on new tables in existing projects from **2026-10-30**. Existing
+  tables keep their grants (so none of migrations 001–048 are affected) —
+  this only bites future migrations. Since every server-side client uses
+  `service_role` over PostgREST (the Data API), a new table created after
+  the cutoff without an explicit grant becomes invisible to the app
+  (`supabase.from('new_table')` → permission denied). So every migration
+  that does `CREATE TABLE public.X` must add:
+  ```sql
+  GRANT SELECT, INSERT, UPDATE, DELETE ON public.X TO service_role;
+  ```
+  `anon` / `authenticated` grants are NOT needed — the app never touches
+  data through those roles (the anon-key clients in `lib/supabase/{client,
+  server}.ts` are dead code, unimported). Still `ENABLE ROW LEVEL SECURITY`
+  + an `authenticated` read policy to match the existing defense-in-depth
+  pattern. The grant is inert before the cutoff, so add it now and don't
+  rely on remembering in October.
 - Conventional commits (feat:, fix:, chore:, refactor:, docs:)
 - `pnpm run typecheck` + `pnpm run lint` must pass before any commit
 - Cron handlers gate to Europe/Bucharest local time in handler body
