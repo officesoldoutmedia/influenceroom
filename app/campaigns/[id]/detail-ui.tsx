@@ -2,7 +2,14 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { CAMPAIGN_STATUSES, type CampaignStatus, type CampaignWithJoins } from '@/lib/campaigns/types'
+import {
+  CAMPAIGN_STATUSES,
+  PR_TYPES,
+  PR_TYPE_LABEL,
+  type CampaignStatus,
+  type CampaignWithJoins,
+  type PrType,
+} from '@/lib/campaigns/types'
 import { ConfirmModal } from '@/lib/ui/confirm-modal'
 import { CampaignPdfButton } from './campaign-pdf-button'
 
@@ -251,6 +258,7 @@ function EditModal({
   const [ownerId, setOwnerId] = useState(campaign.owner_id ?? '')
   const [internalNotes, setInternalNotes] = useState(campaign.internal_notes ?? '')
   const [agencyName, setAgencyName] = useState(campaign.agency_name ?? '')
+  const [prType, setPrType] = useState<'' | PrType>(campaign.pr_type ?? '')
   // External rebate state (toate optionale; rebate-ul e o sectiune separata)
   const [rebateAgency, setRebateAgency] = useState(campaign.rebate_agency_name ?? '')
   const [rebateType, setRebateType] = useState<'' | 'percent' | 'fixed'>(campaign.rebate_type ?? '')
@@ -283,6 +291,7 @@ function EditModal({
         name,
         brand_id: brandId,
         agency_name: agencyName.trim() || null,
+        pr_type: prType === '' ? null : prType,
         start_date: startDate || null,
         end_date: endDate || null,
         total_budget: budget === '' ? null : Number(budget),
@@ -325,6 +334,16 @@ function EditModal({
               placeholder="ex: Influence Room"
               className={inputCls}
             />
+          </Field>
+          <Field label="Tip PR">
+            <select
+              value={prType}
+              onChange={(e) => setPrType(e.target.value as '' | PrType)}
+              className={inputCls}
+            >
+              <option value="">— niciunul —</option>
+              {PR_TYPES.map((t) => <option key={t} value={t}>{PR_TYPE_LABEL[t]}</option>)}
+            </select>
           </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Start date (T+0)">

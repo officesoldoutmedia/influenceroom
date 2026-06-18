@@ -10,6 +10,7 @@
 import { PDFDocument, PDFFont, PDFImage, PDFPage, StandardFonts, rgb } from 'pdf-lib'
 import { WORDMARK_ASPECT_RATIO, WORDMARK_PNG_BASE64 } from '@/lib/rate-cards/wordmark-asset'
 import { formatEur } from '@/lib/influencers/format'
+import { PR_TYPE_LABEL, type PrType } from '@/lib/campaigns/types'
 
 const COLORS = {
   obsidian: rgb(0x0a / 255, 0x0a / 255, 0x0b / 255),
@@ -47,6 +48,7 @@ export type CampaignForPdf = {
   total_budget: number | null
   deliverables_count: number | null
   brief: string | null
+  pr_type: PrType | null
   brand?: { name: string } | null
   owner?: { name: string } | null
 }
@@ -176,6 +178,7 @@ function statusLabel(s: string): string {
 
 const DELIVERABLE_LABELS: Record<string, string> = {
   story: 'Story',
+  story_set: 'Story set',
   reel: 'Reel',
   tiktok: 'TikTok',
   carousel: 'Carousel',
@@ -183,6 +186,7 @@ const DELIVERABLE_LABELS: Record<string, string> = {
   youtube_long: 'YouTube long',
   youtube_short: 'YouTube Short',
   live: 'Live',
+  event_presence: 'Prezenta eveniment',
   custom: 'Custom',
 }
 
@@ -411,6 +415,7 @@ function drawDetailsPage(doc: PDFDocument, assets: Assets, campaign: CampaignFor
     ['Status', statusLabel(campaign.status)],
     ['Owner', campaign.owner?.name ?? '—'],
     ['Brand', campaign.brand?.name ?? '—'],
+    ['Tip PR', campaign.pr_type ? PR_TYPE_LABEL[campaign.pr_type] : '—'],
     ['Buget total', campaign.total_budget != null ? formatEur(campaign.total_budget) : '—'],
     ['Inceput', formatDateRo(campaign.start_date)],
     ['Final', formatDateRo(campaign.end_date)],

@@ -249,6 +249,33 @@ account users only see their own. Companion REST endpoint
 `GET /api/influencers/[id]/campaigns` ships the same shape for external
 consumers.
 
+## Campaign "Tip PR" + inline participants (Sprint 15, migrations 049–050)
+- **`campaigns.pr_type`** (migration 050, `pr_type_enum`): optional PR
+  archetype — `pr_seeding` / `pr_blitz` / `pr_eveniment` (labels in
+  `PR_TYPES` / `PR_TYPE_LABEL` in `lib/campaigns/types.ts`). No dependent
+  logic; purely a classifier. Surfaced in the create modal, the edit
+  modal (`detail-ui.tsx`), the campaign header (`page.tsx`), and the
+  single-campaign PDF (`pdf-single.ts` "Tip PR" row). Validated as
+  `invalid_pr_type` in both POST `/api/campaigns` and PATCH
+  `/api/campaigns/[id]`.
+- **Inline participants at creation**: `/campaigns/new` modal now has a
+  "Participanți adiționali" repeater (influencer + platform + fee per
+  row) on top of the single "Influencer principal". POST `/api/campaigns`
+  accepts `primary_influencer_id` + `participants[]` and creates all
+  rows in-request via `addCampaignParticipant()` (derives `account_handle`
+  from `social_handles[platform].handle` → name; requires the influencer
+  to be **active**; dedups on influencer×platform). Best-effort: rows that
+  can't be added (inactive / unavailable influencer) are returned in
+  `participants_skipped` so the UI warns instead of dropping them
+  silently. New participants default to `status='pitched'` (parity with
+  the manual `/participants` path). Deliverables stay per-participant in
+  the Livrabile tab — the staged model is unchanged.
+- **Two new `deliverable_type` values** (migration 049): `story_set`
+  ("Story set") and `event_presence` ("Prezență eveniment"). The
+  influencer-list shown in the create modal is **not** active-filtered
+  (`app/campaigns/page.tsx`), which is why the skipped-participant
+  reporting above matters.
+
 ## Rate card PDF generation (Sprint 13b)
 On-demand branded PDF export from `rate_cards`. Migration 036 created the
 `rate-cards` Supabase Storage bucket (private) plus three
@@ -422,8 +449,9 @@ mean lexical order matches chronological order.
   migrations 023 + 024):
   - `campaign_deliverables` — one row per concrete piece of content owed
     by a participant (cascade-deletes when the participant goes). Carries
-    `type` (`deliverable_type` ENUM: story/reel/tiktok/carousel/post/
-    youtube_long/youtube_short/live/custom), `quantity` (≥1),
+    `type` (`deliverable_type` ENUM: story/story_set/reel/tiktok/carousel/
+    post/youtube_long/youtube_short/live/event_presence/custom — `story_set`
+    + `event_presence` added in migration 049), `quantity` (≥1),
     `custom_type_label` (required when type=custom), `post_date`,
     `collab_handles[]`, `hashtags[]`, `brief`, `caption`, `notes`,
     `status` (`deliverable_status` ENUM: draft/sent_to_influencer/

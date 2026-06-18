@@ -41,6 +41,7 @@ export type SchedulerResult = {
 
 const DELIVERABLE_TYPE_LABEL: Record<string, string> = {
   story: 'Story',
+  story_set: 'Story set',
   reel: 'Reel',
   tiktok: 'TikTok',
   carousel: 'Carousel',
@@ -48,6 +49,7 @@ const DELIVERABLE_TYPE_LABEL: Record<string, string> = {
   youtube_long: 'YouTube long-form',
   youtube_short: 'YouTube Short',
   live: 'Live',
+  event_presence: 'Prezență eveniment',
   custom: 'Custom',
 }
 

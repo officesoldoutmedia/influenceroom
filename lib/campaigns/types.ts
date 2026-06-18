@@ -13,6 +13,17 @@ export type RebateType = (typeof REBATE_TYPES)[number]
 export const REBATE_STATUSES = ['estimated', 'confirmed', 'paid'] as const
 export type RebateStatus = (typeof REBATE_STATUSES)[number]
 
+// Tip PR — arhetipul de PR al campaniei (migrarea 050). Opțional, fără logică
+// dependentă; doar clasifică natura colaborării.
+export const PR_TYPES = ['pr_seeding', 'pr_blitz', 'pr_eveniment'] as const
+export type PrType = (typeof PR_TYPES)[number]
+
+export const PR_TYPE_LABEL: Record<PrType, string> = {
+  pr_seeding: 'PR Seeding',
+  pr_blitz: 'PR Blitz',
+  pr_eveniment: 'PR Eveniment',
+}
+
 export type Campaign = {
   id: string
   brand_id: string
@@ -33,6 +44,7 @@ export type Campaign = {
   rebate_status: RebateStatus | null
   rebate_notes: string | null
   rebate_applies_to_budget: boolean
+  pr_type: PrType | null
   created_at: string
   updated_at: string
 }
@@ -144,13 +156,14 @@ export type CampaignParticipantJoined = CampaignParticipant & {
 // Sprint 9 Faza 3b — deliverables (per-participant) and milestones (per-campaign).
 
 export const DELIVERABLE_TYPES = [
-  'story', 'reel', 'tiktok', 'carousel', 'post',
-  'youtube_long', 'youtube_short', 'live', 'custom',
+  'story', 'story_set', 'reel', 'tiktok', 'carousel', 'post',
+  'youtube_long', 'youtube_short', 'live', 'event_presence', 'custom',
 ] as const
 export type DeliverableType = (typeof DELIVERABLE_TYPES)[number]
 
 export const DELIVERABLE_TYPE_LABEL: Record<DeliverableType, string> = {
   story: 'Story',
+  story_set: 'Story set',
   reel: 'Reel',
   tiktok: 'TikTok',
   carousel: 'Carousel',
@@ -158,6 +171,7 @@ export const DELIVERABLE_TYPE_LABEL: Record<DeliverableType, string> = {
   youtube_long: 'YouTube long-form',
   youtube_short: 'YouTube Short',
   live: 'Live',
+  event_presence: 'Prezență eveniment',
   custom: 'Custom',
 }
 

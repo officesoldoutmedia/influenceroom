@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { headers } from 'next/headers'
 import { createClient } from '@supabase/supabase-js'
-import { CAMPAIGN_STATUSES, type CampaignStatus } from '@/lib/campaigns/types'
+import { CAMPAIGN_STATUSES, PR_TYPES, type CampaignStatus } from '@/lib/campaigns/types'
 import { requireCampaignWriter } from '@/lib/auth/campaign'
 import { enqueueNotification } from '@/lib/notifications/enqueue'
 import { APP_URL } from '@/lib/email/client'
@@ -77,6 +77,7 @@ type PatchBody = {
   rebate_status?: 'estimated' | 'confirmed' | 'paid' | null
   rebate_notes?: string | null
   rebate_applies_to_budget?: boolean
+  pr_type?: string | null
 }
 
 export async function PATCH(
@@ -135,6 +136,12 @@ export async function PATCH(
   }
   if (body.rebate_notes !== undefined) update.rebate_notes = body.rebate_notes?.toString().trim() || null
   if (body.rebate_applies_to_budget !== undefined) update.rebate_applies_to_budget = !!body.rebate_applies_to_budget
+  if (body.pr_type !== undefined) {
+    if (body.pr_type !== null && !(PR_TYPES as readonly string[]).includes(body.pr_type)) {
+      return NextResponse.json({ ok: false, error: 'invalid_pr_type' }, { status: 400 })
+    }
+    update.pr_type = body.pr_type || null
+  }
   if (body.owner_id !== undefined) update.owner_id = body.owner_id || null
   if (body.brand_id !== undefined) update.brand_id = body.brand_id
 

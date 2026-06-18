@@ -10,6 +10,7 @@ import {
   type CampaignParticipantJoined,
   type CampaignDeliverable,
   type CampaignMilestone,
+  PR_TYPE_LABEL,
 } from '@/lib/campaigns/types'
 import { CampaignDetailUI, type SimpleBrand, type SimpleMember } from './detail-ui'
 import { BoardUI, type TaskWithAssignee } from './board-ui'
@@ -149,6 +150,7 @@ export default async function CampaignDetailPage({
                     <Link href={`/brands`} className="text-brand-800 hover:underline">{campaign.brand.name}</Link>
                   ) : '—'}
                   {campaign.agency_name && <> · Agenție: <span className="text-stone-700">{campaign.agency_name}</span></>}
+                  {campaign.pr_type && <> · Tip PR: <span className="text-stone-700">{PR_TYPE_LABEL[campaign.pr_type]}</span></>}
                   {campaign.owner && <> · Owner: <span className="text-stone-700">{campaign.owner.name}</span></>}
                 </p>
                 {campaign.rebate_value != null && campaign.rebate_type && (

@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 import { requireWriter } from '@/lib/auth/require'
 import { getCurrentUser } from '@/lib/auth/scope'
 import { listCampaigns } from '@/lib/campaigns/search'
+import { PR_TYPES, SOCIAL_PLATFORMS, type SocialPlatform } from '@/lib/campaigns/types'
 
 function admin() {
   return createClient(
@@ -11,6 +12,52 @@ function admin() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { persistSession: false, autoRefreshToken: false } },
   )
+}
+
+type AdminClient = ReturnType<typeof admin>
+
+type AddParticipantResult = 'added' | 'skipped_inactive' | 'skipped_unavailable' | 'error'
+
+/** Inserează un participant pe campanie, derivând account_handle (NOT NULL) din
+ * profilul influencer-ului pentru platforma dată, cu fallback pe nume.
+ * Best-effort: doar influenceri existenți + activi (paritate cu /participants);
+ * campania rămâne creată chiar dacă un participant nu trece. Întoarce un rezultat
+ * ca apelantul să poată raporta în UI ce nu s-a adăugat (vs. dispariție silent).
+ * Folosit la creare pentru influencerul principal + participanții adiționali. */
+async function addCampaignParticipant(
+  supabase: AdminClient,
+  opts: {
+    campaignId: string
+    influencerId: string
+    platform: SocialPlatform
+    fee?: number | null
+    addedBy: string | null
+  },
+): Promise<AddParticipantResult> {
+  const { data: inf } = await supabase
+    .from('influencers')
+    .select('name, status, social_handles')
+    .eq('id', opts.influencerId)
+    .maybeSingle()
+  if (!inf) return 'skipped_unavailable'
+  if (inf.status !== 'active') return 'skipped_inactive'
+  const handles = inf.social_handles as Record<string, { handle?: string }> | null
+  const accountHandle = handles?.[opts.platform]?.handle?.trim() || inf.name?.trim() || ''
+  if (!accountHandle) return 'skipped_unavailable'
+  const { error } = await supabase.from('campaign_participants').insert({
+    campaign_id: opts.campaignId,
+    influencer_id: opts.influencerId,
+    platform: opts.platform,
+    account_handle: accountHandle,
+    is_adhoc: false,
+    agreed_fee: opts.fee ?? null,
+    added_by: opts.addedBy,
+  })
+  if (error) {
+    console.error('[campaign create participant]', error)
+    return 'error'
+  }
+  return 'added'
 }
 
 export async function GET(req: NextRequest) {
@@ -49,10 +96,18 @@ type CreateBody = {
   owner_id?: string | null
   internal_notes?: string | null
   agency_name?: string | null
+  /** Tip PR (optional): pr_seeding / pr_blitz / pr_eveniment. */
+  pr_type?: string | null
   /** Influencer principal (optional): la submit creez auto un campaign_participant
-   * cu acest influencer + platform default. Userul poate adauga si alti participanti
-   * in tab Participanti. */
+   * cu acest influencer + platform default (Instagram). */
   primary_influencer_id?: string | null
+  /** Participanti aditionali adaugati direct in formularul de creare. Fiecare
+   * aduce influencer + platforma + fee; account_handle se derivă server-side. */
+  participants?: Array<{
+    influencer_id?: string
+    platform?: string
+    agreed_fee?: number | null
+  }>
 }
 
 type FieldError = { field: string; code: string }
@@ -88,6 +143,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'validation_failed', errors }, { status: 422 })
   }
 
+  if (
+    body.pr_type !== undefined && body.pr_type !== null &&
+    !(PR_TYPES as readonly string[]).includes(body.pr_type)
+  ) {
+    return NextResponse.json({ ok: false, error: 'invalid_pr_type' }, { status: 422 })
+  }
+
   const h = await headers()
   const createdBy = h.get('x-user-id')
   const supabase = admin()
@@ -118,6 +180,7 @@ export async function POST(req: NextRequest) {
   if (body.agency_name !== undefined) {
     update.agency_name = body.agency_name?.toString().trim() || null
   }
+  if (body.pr_type !== undefined) update.pr_type = body.pr_type || null
   if (body.status === 'active') update.status = 'active'
   if (Object.keys(update).length > 0) {
     const { error: updErr } = await supabase
@@ -132,19 +195,38 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Auto-create primary participant dacă a fost selectat (best-effort,
-  // nu blochează response-ul dacă eșuează — campania e creată oricum).
+  // Participanți creați direct din formularul de creare (best-effort — campania
+  // rămâne creată chiar dacă un insert eșuează). Influencerul principal devine
+  // participant Instagram; participanții adiționali aduc platforma + fee proprii.
+  // BUGFIX (istoric): account_handle e NOT NULL — insert-ul vechi îl omitea și
+  // participantul principal pica silent. Acum se derivă în addCampaignParticipant.
+  // Dedup pe (influencer × platformă) ca să nu dublăm același rând.
+  const seenParticipants = new Set<string>()
+  const skippedParticipants: Array<{ influencer_id: string; reason: AddParticipantResult }> = []
   if (body.primary_influencer_id) {
-    const { error: partErr } = await supabase.from('campaign_participants').insert({
-      campaign_id: createdId,
-      influencer_id: body.primary_influencer_id,
+    seenParticipants.add(`${body.primary_influencer_id}:instagram`)
+    const r = await addCampaignParticipant(supabase, {
+      campaignId: createdId,
+      influencerId: body.primary_influencer_id,
       platform: 'instagram',
-      is_adhoc: false,
-      added_by: createdBy,
+      addedBy: createdBy,
     })
-    if (partErr) {
-      console.error('[campaign create primary participant]', partErr)
-    }
+    if (r !== 'added') skippedParticipants.push({ influencer_id: body.primary_influencer_id, reason: r })
+  }
+  for (const p of body.participants ?? []) {
+    if (!p?.influencer_id) continue
+    if (!(SOCIAL_PLATFORMS as readonly string[]).includes(p.platform ?? '')) continue
+    const key = `${p.influencer_id}:${p.platform}`
+    if (seenParticipants.has(key)) continue
+    seenParticipants.add(key)
+    const r = await addCampaignParticipant(supabase, {
+      campaignId: createdId,
+      influencerId: p.influencer_id,
+      platform: p.platform as SocialPlatform,
+      fee: p.agreed_fee ?? null,
+      addedBy: createdBy,
+    })
+    if (r !== 'added') skippedParticipants.push({ influencer_id: p.influencer_id, reason: r })
   }
 
   // Fetch obiectul complet pentru response (cu status + agency_name actualizate).
@@ -160,5 +242,5 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  return NextResponse.json({ ok: true, campaign })
+  return NextResponse.json({ ok: true, campaign, participants_skipped: skippedParticipants })
 }

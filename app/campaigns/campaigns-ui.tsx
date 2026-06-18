@@ -5,8 +5,14 @@ import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import {
   CAMPAIGN_STATUSES,
+  PR_TYPES,
+  PR_TYPE_LABEL,
+  PLATFORM_LABEL,
+  SOCIAL_PLATFORMS,
   type CampaignStatus,
   type CampaignWithJoins,
+  type PrType,
+  type SocialPlatform,
 } from '@/lib/campaigns/types'
 import { EmptyState, Button, Combobox, type ComboboxItem } from '@/lib/ui'
 import { ConfirmModal } from '@/lib/ui/confirm-modal'
@@ -692,7 +698,11 @@ function NewCampaignModal({
   const [brandList, setBrandList] = useState<SimpleBrand[]>(brands)
   const [name, setName] = useState('')
   const [agencyName, setAgencyName] = useState('')
+  const [prType, setPrType] = useState<'' | PrType>('')
   const [primaryInfluencerId, setPrimaryInfluencerId] = useState<string | null>(null)
+  const [extraParticipants, setExtraParticipants] = useState<
+    Array<{ influencer_id: string; platform: SocialPlatform; agreed_fee: string }>
+  >([])
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [budget, setBudget] = useState('')
@@ -715,6 +725,19 @@ function NewCampaignModal({
   const ownerCandidates = role === 'owner' || role === 'manager'
     ? members
     : members.filter((m) => m.id === currentUserId)
+
+  function addParticipantRow() {
+    setExtraParticipants((prev) => [...prev, { influencer_id: '', platform: 'instagram', agreed_fee: '' }])
+  }
+  function updateParticipantRow(
+    idx: number,
+    patch: Partial<{ influencer_id: string; platform: SocialPlatform; agreed_fee: string }>,
+  ) {
+    setExtraParticipants((prev) => prev.map((p, i) => (i === idx ? { ...p, ...patch } : p)))
+  }
+  function removeParticipantRow(idx: number) {
+    setExtraParticipants((prev) => prev.filter((_, i) => i !== idx))
+  }
 
   function fieldErrorMessage(field: string, code: string): string {
     if (field === 'start_date' && code === 'missing') return 'Selectează data de start'
@@ -745,7 +768,18 @@ function NewCampaignModal({
         name,
         status: mode,
         agency_name: agencyName.trim() || null,
+        pr_type: prType === '' ? null : prType,
         primary_influencer_id: primaryInfluencerId,
+        participants: extraParticipants
+          .filter((p) => p.influencer_id && p.platform)
+          .map((p) => {
+            const n = Number(p.agreed_fee)
+            return {
+              influencer_id: p.influencer_id,
+              platform: p.platform,
+              agreed_fee: p.agreed_fee === '' || Number.isNaN(n) ? null : n,
+            }
+          }),
         start_date: startDate || null,
         end_date: endDate || null,
         total_budget: budget === '' ? null : Number(budget),
@@ -757,9 +791,17 @@ function NewCampaignModal({
     })
     const data = (await res.json().catch(() => ({}))) as ApiResp<{ id: string }> & {
       errors?: { field: string; code: string }[]
+      participants_skipped?: Array<{ influencer_id: string; reason: string }>
     }
     setSubmitMode(null)
     if (res.ok && data.campaign?.id) {
+      const skipped = data.participants_skipped ?? []
+      if (skipped.length > 0) {
+        alert(
+          `${skipped.length} participant(i) nu au fost adăugați automat (influencer inactiv sau indisponibil). ` +
+            'Îi poți adăuga manual din tab-ul „Participanți".',
+        )
+      }
       onCreated(data.campaign.id)
       return
     }
@@ -807,6 +849,16 @@ function NewCampaignModal({
               className={inputCls}
             />
           </Field>
+          <Field label="Tip PR">
+            <select
+              value={prType}
+              onChange={(e) => setPrType(e.target.value as '' | PrType)}
+              className={inputCls}
+            >
+              <option value="">— niciunul —</option>
+              {PR_TYPES.map((t) => <option key={t} value={t}>{PR_TYPE_LABEL[t]}</option>)}
+            </select>
+          </Field>
           <Field label="Influencer principal">
             <Combobox
               items={influencers.map((i): ComboboxItem => ({ id: i.id, label: i.name }))}
@@ -816,10 +868,70 @@ function NewCampaignModal({
               emptyLabel="Niciun influencer."
             />
             <p className="text-xs text-stone-500 mt-1">
-              Se adaugă automat ca participant Instagram. Pentru alți participanți / platforme,
-              folosește tab-ul „Participanți” după creare.
+              Se adaugă automat ca participant Instagram. Adaugă mai jos alți participanți
+              sau folosește tab-ul „Participanți” după creare.
             </p>
           </Field>
+
+          {/* Participanți adiționali — opțional, creați la submit împreună cu
+              campania (fiecare aduce influencer + platformă + fee). */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <span className="block text-xs font-medium text-stone-600">Participanți adiționali</span>
+              <button
+                type="button"
+                onClick={addParticipantRow}
+                className="text-xs font-medium text-brand-700 hover:text-brand-800"
+              >
+                + Adaugă participant
+              </button>
+            </div>
+            {extraParticipants.length === 0 ? (
+              <p className="text-xs text-stone-400 italic">
+                Niciunul. Influencerul principal de mai sus se adaugă automat.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {extraParticipants.map((p, idx) => (
+                  <div key={idx} className="border border-stone-200 rounded-lg p-2.5 space-y-2">
+                    <select
+                      value={p.influencer_id}
+                      onChange={(e) => updateParticipantRow(idx, { influencer_id: e.target.value })}
+                      className={inputCls}
+                    >
+                      <option value="">— alege influencer —</option>
+                      {influencers.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
+                    </select>
+                    <div className="grid grid-cols-[1fr_1fr_auto] gap-2 items-center">
+                      <select
+                        value={p.platform}
+                        onChange={(e) => updateParticipantRow(idx, { platform: e.target.value as SocialPlatform })}
+                        className={inputCls}
+                      >
+                        {SOCIAL_PLATFORMS.map((pl) => <option key={pl} value={pl}>{PLATFORM_LABEL[pl]}</option>)}
+                      </select>
+                      <input
+                        type="number"
+                        min={0}
+                        value={p.agreed_fee}
+                        onChange={(e) => updateParticipantRow(idx, { agreed_fee: e.target.value })}
+                        placeholder="Fee (€)"
+                        className={inputCls}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeParticipantRow(idx)}
+                        aria-label="Șterge participant"
+                        className="p-2 text-stone-400 hover:text-rose-600"
+                      >
+                        <TrashIcon className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Start (T+0)">
               <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className={inputCls} />

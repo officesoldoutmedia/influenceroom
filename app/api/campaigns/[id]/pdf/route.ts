@@ -44,7 +44,7 @@ export async function POST(
   const { data: campaign } = await supabase
     .from('campaigns')
     .select(`
-      id, name, status, start_date, end_date, total_budget, deliverables_count, brief,
+      id, name, status, start_date, end_date, total_budget, deliverables_count, brief, pr_type,
       brand:brands(name),
       owner:team_members!campaigns_owner_id_fkey(name)
     `)

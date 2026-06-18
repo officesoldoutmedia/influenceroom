@@ -54,6 +54,11 @@ export async function listCampaigns(p: CampaignSearchParams): Promise<CampaignSe
       `,
       { count: 'exact' },
     )
+    // Listă alfabetică A→Z după numele campaniei (cerință echipă). created_at
+    // descrescător e doar tiebreaker pentru nume identice → ordine stabilă la
+    // fiecare încărcare. Sortarea respectă collation-ul DB (case-insensitive
+    // pe en_US.UTF-8, default Supabase).
+    .order('name', { ascending: true })
     .order('created_at', { ascending: false })
 
   if (p.q) query = query.ilike('name', `%${p.q}%`)
