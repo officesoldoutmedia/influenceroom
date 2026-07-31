@@ -153,11 +153,13 @@ export function InfluencersUI({
           {/* Mobile: cards */}
           <ul className="md:hidden space-y-2">
             {items.map((i) => (
-              <li key={i.id} className={i.status === 'active' ? '' : 'opacity-60'}>
-                <Link
-                  href={`/influencers/${i.id}`}
-                  className="flex items-start gap-3 bg-white border border-stone-200 rounded-xl p-4 active:bg-stone-50 transition-colors"
-                >
+              <li key={i.id} className={`group relative ${i.status === 'active' ? '' : 'opacity-60'}`}>
+                {/* Cardul NU e <Link> — un <a> nu poate conține alt <a>, iar
+                    iconurile de platformă sunt linkuri externe. Linkul spre
+                    profil e un overlay absolut peste card, iar rândul de
+                    iconuri stă deasupra lui (relative z-10) ca să rămână
+                    clickabil. */}
+                <div className="flex items-start gap-3 bg-white border border-stone-200 rounded-xl p-4 group-active:bg-stone-50 transition-colors">
                   <Avatar name={i.name} size="md" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
@@ -176,7 +178,7 @@ export function InfluencersUI({
                         </div>
                       ) : null
                     })()}
-                    <div className="mt-1.5">
+                    <div className="mt-1.5 relative z-10 w-fit">
                       <PlatformLinks social_handles={i.social_handles} name={i.name} />
                     </div>
                     <div className="mt-2 flex items-center justify-between text-[12px] text-stone-500 gap-2">
@@ -194,7 +196,12 @@ export function InfluencersUI({
                       </span>
                     </div>
                   </div>
-                </Link>
+                </div>
+                <Link
+                  href={`/influencers/${i.id}`}
+                  aria-label={i.name}
+                  className="absolute inset-0 rounded-xl"
+                />
               </li>
             ))}
           </ul>
