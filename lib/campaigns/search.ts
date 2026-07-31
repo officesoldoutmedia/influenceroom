@@ -61,7 +61,30 @@ export async function listCampaigns(p: CampaignSearchParams): Promise<CampaignSe
     .order('name', { ascending: true })
     .order('created_at', { ascending: false })
 
-  if (p.q) query = query.ilike('name', `%${p.q}%`)
+  // Căutarea q acoperă nume campanie + nume influencer + handle de cont al
+  // participanților (cerere Oana 2026-07-31: "caut un influencer → văd
+  // campaniile lui"). Pre-fetch de ids + un singur .in('id', ...) în loc de
+  // .or() PostgREST — termenul căutat e input de utilizator și sintaxa .or()
+  // se rupe la virgule/paranteze în valoare; ca filtru standalone, pattern-ul
+  // circulă doar ca valoare URL-encodată. Handle-urile sunt stocate fără '@'
+  // (normalizeHandle), deci un '@' inițial în căutare e ignorat.
+  if (p.q) {
+    const pattern = `%${p.q}%`
+    const handlePattern = `%${p.q.replace(/^@/, '')}%`
+    const [byName, byInfluencer, byHandle] = await Promise.all([
+      supabase.from('campaigns').select('id').ilike('name', pattern),
+      supabase
+        .from('campaign_participants')
+        .select('campaign_id, influencers!inner(id)')
+        .ilike('influencers.name', pattern),
+      supabase.from('campaign_participants').select('campaign_id').ilike('account_handle', handlePattern),
+    ])
+    const qIds = new Set<string>()
+    for (const r of byName.data ?? []) qIds.add((r as { id: string }).id)
+    for (const r of byInfluencer.data ?? []) qIds.add((r as { campaign_id: string }).campaign_id)
+    for (const r of byHandle.data ?? []) qIds.add((r as { campaign_id: string }).campaign_id)
+    query = query.in('id', qIds.size > 0 ? [...qIds] : ['00000000-0000-0000-0000-000000000000'])
+  }
   if (statuses.length) query = query.in('status', statuses)
   if (p.brand) query = query.eq('brand_id', p.brand)
   if (p.owner) query = query.eq('owner_id', p.owner)

@@ -528,7 +528,7 @@ function FilterBar({
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Caută după nume…"
+          placeholder="Caută campanie sau influencer…"
           className={`${inputCls} sm:flex-1`}
         />
         <button
