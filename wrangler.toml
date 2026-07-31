@@ -9,6 +9,12 @@ compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]
 directory = ".open-next/assets"
 binding = "ASSETS"
 
+# Workers Logs: persistent invocation logs in the Cloudflare dashboard
+# (Workers → influenceroom → Logs). Without this there is NO history of
+# runtime errors — incidents reported after the fact can't be diagnosed.
+[observability]
+enabled = true
+
 [triggers]
 # */5 * * * *  drain notifications.status='queued' via processQueueBatch.
 #              Auto-flush on /api/admin/broadcast still handles broadcasts
