@@ -3,6 +3,7 @@ import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@supabase/supabase-js'
 import { Nav, type NavRole } from '@/app/_components/nav'
+import { BackLink } from '@/lib/ui/back-link'
 import {
   type CampaignWithJoins,
   type CampaignStatus,
@@ -132,7 +133,7 @@ export default async function CampaignDetailPage({
       <main className="bg-stone-50 px-4 sm:px-6 py-6 sm:py-10 pwa-safe-bottom">
         <div className="max-w-5xl mx-auto">
           <div className="mb-4">
-            <Link href="/campaigns" className="text-sm text-stone-500 hover:text-stone-800">← Campanii</Link>
+            <BackLink fallbackHref="/campaigns" className="text-sm text-stone-500 hover:text-stone-800">← Campanii</BackLink>
           </div>
 
           <header className="bg-white rounded-2xl shadow-sm p-6 mb-4">

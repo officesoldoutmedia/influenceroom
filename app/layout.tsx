@@ -4,6 +4,7 @@ import "./globals.css";
 import { SwRegister } from "./sw-register";
 import { InstallPrompt } from "./install-prompt";
 import { ToastProvider } from "@/lib/ui";
+import { NavHistoryTracker } from "@/lib/ui/back-link";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -59,6 +60,7 @@ export default function RootLayout({
           {children}
           <InstallPrompt />
           <SwRegister />
+          <NavHistoryTracker />
         </ToastProvider>
       </body>
     </html>

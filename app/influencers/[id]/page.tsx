@@ -3,6 +3,7 @@ import { redirect, notFound } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
 import Link from 'next/link'
 import { Nav, type NavRole } from '@/app/_components/nav'
+import { BackLink } from '@/lib/ui/back-link'
 import {
   PLATFORMS,
   PLATFORM_LABEL,
@@ -135,7 +136,7 @@ export default async function InfluencerDetailPage({
       <main className="bg-stone-50 px-4 sm:px-6 py-6 sm:py-10 pwa-safe-bottom">
         <div className="max-w-4xl mx-auto">
           <div className="mb-4">
-            <Link href="/influencers" className="text-sm text-stone-500 hover:text-stone-800">← Influencers</Link>
+            <BackLink fallbackHref="/influencers" className="text-sm text-stone-500 hover:text-stone-800">← Influencers</BackLink>
           </div>
 
           <div className="bg-white rounded-2xl shadow-sm p-6 mb-4">
